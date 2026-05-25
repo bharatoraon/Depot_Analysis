@@ -100,21 +100,24 @@ def bucket_for_multimodal(routes_count):
 
 def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_route_types=None):
     min_routes = {nid: float("inf") for nid in nodes}
+    accessible_targets = {nid: set() for nid in nodes}
     reached = set()
 
     for t in target_nodes:
         if t in min_routes:
             min_routes[t] = 0
+            accessible_targets[t].add(t)
             reached.add(t)
             if t in footpaths:
                 for nbr in footpaths[t]:
                     if nbr in min_routes:
                         min_routes[nbr] = 0
+                        accessible_targets[nbr].add(t)
                         reached.add(nbr)
 
     current_stops = reached
     for r in range(1, 4):
-        routes_to_traverse = set()
+        route_targets = {}
         for stop in current_stops:
             if stop in stop_routes:
                 for route_id in stop_routes[stop]:
@@ -126,10 +129,12 @@ def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_rout
                             route_type = "suburban"
                         if route_type not in allowed_route_types:
                             continue
-                    routes_to_traverse.add(route_id)
+                    if route_id not in route_targets:
+                        route_targets[route_id] = set()
+                    route_targets[route_id].update(accessible_targets[stop])
 
         new_stops = set()
-        for route_id in routes_to_traverse:
+        for route_id, tgts in route_targets.items():
             if route_id in routes:
                 for stop in routes[route_id]:
                     if stop not in min_routes:
@@ -137,6 +142,8 @@ def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_rout
                     if min_routes[stop] > r:
                         min_routes[stop] = r
                         new_stops.add(stop)
+                    if min_routes[stop] == r:
+                        accessible_targets[stop].update(tgts)
 
         walk_stops = set()
         for stop in new_stops:
@@ -151,12 +158,14 @@ def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_rout
                     if min_routes[nbr] > r:
                         min_routes[nbr] = r
                         walk_stops.add(nbr)
+                    if min_routes[nbr] == r:
+                        accessible_targets[nbr].update(accessible_targets[stop])
 
         current_stops = new_stops.union(walk_stops)
         if not current_stops:
             break
 
-    return min_routes
+    return min_routes, accessible_targets
 
 
 def main():
@@ -601,7 +610,7 @@ def main():
     # 8. Run RAPTOR
     print("Running Round-Based (RAPTOR) connectivity analysis...", flush=True)
     print("  Evaluating Bus-Only connectivity...", flush=True)
-    bus_only_dist = run_raptor(
+    bus_only_dist, bus_only_acc = run_raptor(
         nodes=nodes,
         routes=routes_dict,
         stop_routes=stop_routes,
@@ -611,7 +620,7 @@ def main():
     )
 
     print("  Evaluating Multimodal connectivity...", flush=True)
-    multimodal_dist = run_raptor(
+    multimodal_dist, multimodal_acc = run_raptor(
         nodes=nodes,
         routes=routes_dict,
         stop_routes=stop_routes,
@@ -629,6 +638,12 @@ def main():
         if sid in nodes:
             bus_only_dist[sid] = 1
             multimodal_dist[sid] = 1
+            if sid not in bus_only_acc:
+                bus_only_acc[sid] = set()
+            bus_only_acc[sid].add(sid)
+            if sid not in multimodal_acc:
+                multimodal_acc[sid] = set()
+            multimodal_acc[sid].add(sid)
 
     # 9. Enrich and export Bus Stops
     print("Enriching bus stops connectivity metadata...", flush=True)
@@ -646,6 +661,10 @@ def main():
         mm_d = multimodal_dist.get(sid, float("inf"))
         multimodal_routes = None if mm_d == float("inf") else (1 if mm_d == 0 else mm_d)
 
+        # Compile names of accessible terminals and hubs
+        acc_terms = sorted(list(set(nodes[tid]["name"] for tid in bus_only_acc.get(sid, []) if tid in nodes)))
+        acc_hubs = sorted(list(set(nodes[tid]["name"] for tid in multimodal_acc.get(sid, []) if tid in nodes)))
+
         props = dict(ft.get("properties", {}))
         qa_note = qa_facility_overrides.get(sid, "")
         props.update(
@@ -653,6 +672,8 @@ def main():
                 "route_count": len(rs),
                 "routes_clean": rs,
                 "inside_cma": in_cma,
+                "accessible_terminals": acc_terms,
+                "accessible_hubs": acc_hubs,
                 # Bus-only metrics (Keep keys same to maintain backward compatibility where needed)
                 "terminal_min_buses": terminal_buses,
                 "terminal_connectivity": bucket_for_buses(terminal_buses),
