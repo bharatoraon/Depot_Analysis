@@ -514,6 +514,64 @@
         bottom: 10px;
       }
     }
+
+    /* Switch toggle styles */
+    .switch-container {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .switch-container input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .switch-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #cbd5e1;
+      transition: .25s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 24px;
+    }
+    .switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .25s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    input:checked + .switch-slider {
+      background-color: #ef4444;
+    }
+    input:checked + .switch-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Underserved card list styles */
+    .underserved-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .underserved-card:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      transform: translateY(-1.5px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
   </style>
 </head>
 <body>
@@ -552,8 +610,32 @@
         </div>
       </div>
 
-      <!-- Map Controls -->
+      <!-- Focus View Switch -->
       <div class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h2 style="margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">Underserved Focus</h2>
+          <label class="switch-container">
+            <input type="checkbox" id="chkUnderserved" onchange="toggleUnderservedMode(this.checked)">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <p class="subtitle" style="margin-top: -2px; margin-bottom: 0;">Isolate and locate underserved stops on the map (190 for Bus-Only, 78 for Multimodal).</p>
+      </div>
+
+      <!-- Underserved List Section -->
+      <div id="underservedSection" class="section" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h2 style="margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">Underserved Stops List</h2>
+          <span id="underservedCountBadge" class="badge-pill" style="background: #ef4444; color: white; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; font-family: monospace;">-</span>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <input type="text" id="underservedSearch" placeholder="Search stops..." style="width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 12px; font-family: inherit;" oninput="filterUnderservedList()">
+        </div>
+        <div id="underservedList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;"></div>
+      </div>
+
+      <!-- Map Controls -->
+      <div class="section" id="mapControlsSection">
         <h2>Map Controls</h2>
         <div class="control">
           <label for="routeSelect">Highlight bus route</label>
@@ -571,7 +653,7 @@
       </div>
 
       <!-- Connectivity Breakdown -->
-      <div class="section">
+      <div class="section" id="breakdownSection">
         <h2 id="breakdownTitle">Terminal Connectivity</h2>
         <div id="connectivityBars" class="bar-list"></div>
       </div>
@@ -670,11 +752,109 @@
       return colours[props[analysisMode]] || "#64748b";
     }
 
+    let underservedActive = false;
+
     function stopVisible(props) {
       if (!props.inside_cma) return false;
+      
+      // If Underserved Focus is active, show only non-direct stops (those requiring 2 buses or 2 routes)
+      if (underservedActive) {
+        const conn = props[analysisMode];
+        if (conn !== "2 buses" && conn !== "2 routes") {
+          return false;
+        }
+      }
+      
       if (!selectedRoute) return true;
       const r_list = Array.isArray(props.routes_clean) ? props.routes_clean : [];
       return r_list.includes(selectedRoute);
+    }
+
+    function toggleUnderservedMode(active) {
+      underservedActive = active;
+      
+      const underservedSection = document.getElementById("underservedSection");
+      const mapControlsSection = document.getElementById("mapControlsSection");
+      const breakdownSection = document.getElementById("breakdownSection");
+      const asideEl = document.querySelector("aside");
+      
+      if (active) {
+        underservedSection.style.display = "flex";
+        mapControlsSection.style.display = "none";
+        breakdownSection.style.display = "none";
+        if (asideEl) asideEl.style.overflowY = "hidden";
+        
+        // Reset search field
+        document.getElementById("underservedSearch").value = "";
+        
+        renderUnderservedList();
+      } else {
+        underservedSection.style.display = "none";
+        mapControlsSection.style.display = "block";
+        breakdownSection.style.display = "block";
+        if (asideEl) asideEl.style.overflowY = "auto";
+      }
+      
+      redrawOperationalLayers();
+    }
+
+    function renderUnderservedList() {
+      const listContainer = document.getElementById("underservedList");
+      if (!listContainer) return;
+      listContainer.innerHTML = "";
+      
+      const searchVal = document.getElementById("underservedSearch").value.toLowerCase();
+      
+      if (!data.stops || !data.stops.features) return;
+      
+      const items = data.stops.features.filter(f => {
+        if (!f.properties.inside_cma) return false;
+        const conn = f.properties[analysisMode];
+        const isUnderserved = conn === "2 buses" || conn === "2 routes";
+        if (!isUnderserved) return false;
+        
+        if (searchVal) {
+          const name = (f.properties["Stop Name"] || f.properties["Name"] || "").toLowerCase();
+          return name.includes(searchVal);
+        }
+        return true;
+      });
+      
+      document.getElementById("underservedCountBadge").textContent = items.length;
+      
+      items.forEach(f => {
+        const p = f.properties;
+        const coords = f.geometry.coordinates; // [lng, lat]
+        const name = p["Stop Name"] || p["Name"] || "Unknown Stop";
+        const routesServed = Array.isArray(p.routes_clean) ? p.routes_clean.join(", ") : "";
+        
+        const card = document.createElement("div");
+        card.className = "underserved-card";
+        card.innerHTML = `
+          <div style="font-weight: 700; font-size: 12px; color: #0f172a;">${name}</div>
+          <div style="font-size: 11px; color: #64748b; margin-top: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${routesServed}">
+            Routes: ${routesServed}
+          </div>
+        `;
+        
+        card.addEventListener("click", () => {
+          map.setView([coords[1], coords[0]], 16);
+          
+          if (layers.stops) {
+            layers.stops.eachLayer(layer => {
+              if (layer.feature && layer.feature.properties && layer.feature.properties["Stop Id"] === p["Stop Id"]) {
+                layer.openPopup();
+              }
+            });
+          }
+        });
+        
+        listContainer.appendChild(card);
+      });
+    }
+
+    function filterUnderservedList() {
+      renderUnderservedList();
     }
 
     function routeVisible(props) {
@@ -1038,6 +1218,9 @@
       }
 
       redrawOperationalLayers();
+      if (underservedActive) {
+        renderUnderservedList();
+      }
     }
 
     function bindControls() {
