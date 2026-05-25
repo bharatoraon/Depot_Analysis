@@ -656,7 +656,7 @@
     let analysisMode = "terminal_connectivity"; // 'terminal_connectivity' (Bus-Only) or 'multimodal_connectivity' (Multimodal)
 
     function loadJSON(path) {
-      return fetch(path).then(response => {
+      return fetch(path + "?t=" + Date.now()).then(response => {
         if (!response.ok) throw new Error(`Failed to load ${path}`);
         return response.json();
       });
