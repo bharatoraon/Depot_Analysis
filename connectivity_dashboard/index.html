@@ -1,0 +1,1075 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chennai Multimodal Transit Connectivity Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #cbd5e1;
+      --panel: #ffffff;
+      --soft: #f8fafc;
+      --direct: #10b981;
+      --two: #f59e0b;
+      --three: #ef4444;
+      --none: #64748b;
+      --bus: #f97316;
+      --metro-blue: #2563eb;
+      --metro-green: #16a34a;
+      --suburban: #7c2d12;
+      --terminal: #d97706;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: var(--soft);
+      letter-spacing: -0.015em;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(360px, 400px) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    main {
+      position: relative;
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    /* Mode Switcher Segmented Control */
+    .mode-switcher {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 4px;
+    }
+    .mode-btn {
+      border: none;
+      background: transparent;
+      border-radius: 9px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .mode-btn svg {
+      width: 15px;
+      height: 15px;
+    }
+    .mode-btn.active {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .kpi {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px 0 rgba(0,0,0,0.02);
+      transition: all 0.2s ease;
+    }
+
+    .kpi.full-width {
+      grid-column: span 2;
+    }
+
+    .kpi-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .kpi-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .kpi-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .kpi strong {
+      display: block;
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.1;
+      color: #0f172a;
+      letter-spacing: -0.03em;
+    }
+
+    .kpi span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .section {
+      border-top: 1px solid #f1f5f9;
+      padding-top: 18px;
+    }
+
+    .section h2 {
+      margin: 0 0 14px;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: .08em;
+    }
+
+    .control {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      color: #334155;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    select, input[type="search"] {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px 12px;
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+      min-height: 38px;
+      outline: none;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    select:focus {
+      border-color: #cbd5e1;
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.08);
+    }
+
+    .toggles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+      background: #fff;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    .toggle:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+    .toggle input { display: none; }
+    
+    .toggle::before {
+      content: '';
+      width: 16px;
+      height: 16px;
+      border: 2px solid #cbd5e1;
+      border-radius: 4px;
+      background: #fff;
+      display: inline-block;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+    .toggle.active {
+      border-color: var(--theme-color);
+      background: var(--theme-bg);
+      color: var(--theme-color);
+    }
+    .toggle.active::before {
+      background-color: var(--theme-color);
+      border-color: var(--theme-color);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='12' height='12'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+      background-size: 10px;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+
+    .bar-list {
+      display: grid;
+      gap: 4px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr) 48px;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f8fafc;
+    }
+    .bar-row:last-child {
+      border-bottom: none;
+    }
+
+    .bar-label {
+      color: #334155;
+      font-weight: 600;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bar-track {
+      height: 6px;
+      background: #f1f5f9;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: var(--direct);
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #map {
+      position: absolute;
+      inset: 0;
+      background: #f1f5f9;
+    }
+
+    .map-tools {
+      position: absolute;
+      z-index: 500;
+      top: 16px;
+      left: 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      max-width: min(760px, calc(100vw - 440px));
+    }
+
+    .pill {
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 999px;
+      padding: 8px 14px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .map-basemap-control {
+      position: absolute;
+      z-index: 520;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+
+    .map-basemap-control label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    .map-basemap-control select {
+      width: 120px;
+      min-height: 28px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .legend {
+      position: absolute;
+      z-index: 500;
+      right: 16px;
+      bottom: 24px;
+      width: 240px;
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 12px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.08);
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .legend-title {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--ink);
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 6px;
+      margin-bottom: 2px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-weight: 550;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: none;
+      border: 1px solid rgba(15,23,42,0.1);
+    }
+
+    .line-swatch {
+      width: 20px;
+      height: 3px;
+      border-radius: 999px;
+      flex: none;
+    }
+
+    .star-marker {
+      width: 20px;
+      height: 20px;
+      background: #ef4444;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 6px rgba(15,23,42,0.25);
+      clip-path: polygon(50% 0%, 61% 34%, 98% 34%, 68% 55%, 79% 91%, 50% 70%, 21% 91%, 32% 55%, 2% 34%, 39% 34%);
+    }
+
+    .star-swatch {
+      width: 12px;
+      height: 12px;
+      background: #ef4444;
+      clip-path: polygon(50% 0%, 61% 34%, 98% 34%, 68% 55%, 79% 91%, 50% 70%, 21% 91%, 32% 55%, 2% 34%, 39% 34%);
+      flex: none;
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(15,23,42,0.08), 0 8px 10px -6px rgba(15,23,42,0.08);
+      border: 1px solid rgba(15,23,42,0.05);
+    }
+
+    .leaflet-popup-content {
+      margin: 14px 16px;
+      min-width: 240px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .popup-title {
+      font-weight: 800;
+      font-size: 14px;
+      color: var(--ink);
+      margin-bottom: 8px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 6px;
+    }
+
+    .popup-grid {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 4px 10px;
+    }
+
+    .popup-grid span:nth-child(odd) {
+      color: var(--muted);
+      font-weight: 550;
+    }
+    
+    .popup-grid span:nth-child(even) {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    /* Custom scrollbar for sidebar */
+    aside::-webkit-scrollbar {
+      width: 6px;
+    }
+    aside::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    aside::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 999px;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 50vh auto;
+      }
+      aside {
+        grid-row: 2;
+        height: auto;
+        border-right: 0;
+        border-top: 1px solid var(--line);
+      }
+      main {
+        grid-row: 1;
+        min-height: 50vh;
+      }
+      .map-tools {
+        max-width: calc(100vw - 32px);
+        left: 10px;
+        top: 10px;
+      }
+      .map-basemap-control {
+        top: 10px;
+        right: 10px;
+      }
+      .legend {
+        right: 10px;
+        bottom: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div>
+        <h1>Transit Connectivity</h1>
+        <p class="subtitle">Multi-tier accessibility analysis dashboard for the Chennai Metropolitan Area.</p>
+      </div>
+
+      <!-- Mode Switcher -->
+      <div class="mode-switcher">
+        <button id="btnBusOnly" class="mode-btn active" onclick="switchMode('terminal_connectivity')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h7.5m-7.5 0h-1.5A2.25 2.25 0 0 1 3 16.5v-1.5m15 3.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.5a2.25 2.25 0 0 0 2.25-2.25v-1.5M16.5 15h-1.5m1.5 0V4.875c0-.621-.504-1.125-1.125-1.125h-9.75c-.621 0-1.125 0-1.125.011M16.5 15h-9m0 0V4.887m0 0c0-.621.504-1.125 1.125-1.125h9.75M16.5 9v1.5h-9V9" /></svg>
+          Bus-Only
+        </button>
+        <button id="btnMultimodal" class="mode-btn" onclick="switchMode('multimodal_connectivity')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" /></svg>
+          Multimodal
+        </button>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpis">
+        <div class="kpi">
+          <strong id="kpiStops">-</strong>
+          <span>Bus stops inside CMA</span>
+        </div>
+        <div class="kpi">
+          <strong id="kpiTerminalDirect">-</strong>
+          <span id="kpiDirectLabel">Direct to terminal</span>
+        </div>
+        <div class="kpi full-width">
+          <strong id="kpiFacilities">-</strong>
+          <span id="kpiFacilitiesLabel">Bus facilities</span>
+        </div>
+      </div>
+
+      <!-- Map Controls -->
+      <div class="section">
+        <h2>Map Controls</h2>
+        <div class="control">
+          <label for="routeSelect">Highlight bus route</label>
+          <select id="routeSelect">
+            <option value="">All routes</option>
+          </select>
+        </div>
+        <div class="toggles">
+          <label class="toggle" style="--theme-color: #f97316; --theme-bg: #fff7ed;"><input type="checkbox" id="toggleRoutes" checked> Bus Routes</label>
+          <label class="toggle" style="--theme-color: #10b981; --theme-bg: #ecfdf5;"><input type="checkbox" id="toggleStops" checked> Bus Stops</label>
+          <label class="toggle" style="--theme-color: #d97706; --theme-bg: #fef3c7;"><input type="checkbox" id="toggleFacilities" checked> Bus Terminals</label>
+          <label class="toggle" style="--theme-color: #2563eb; --theme-bg: #eff6ff;"><input type="checkbox" id="toggleMetro" checked> Metro Rail</label>
+          <label class="toggle" style="--theme-color: #7c2d12; --theme-bg: #fff7ed;"><input type="checkbox" id="toggleSuburban" checked> Suburban Rail</label>
+        </div>
+      </div>
+
+      <!-- Connectivity Breakdown -->
+      <div class="section">
+        <h2 id="breakdownTitle">Terminal Connectivity</h2>
+        <div id="connectivityBars" class="bar-list"></div>
+      </div>
+    </aside>
+
+    <main>
+      <div id="map"></div>
+      <div class="map-tools">
+        <div class="pill" id="statusPill">Loading transit network layers...</div>
+        <div class="pill">CMA boundary active</div>
+      </div>
+      <div class="map-basemap-control">
+        <label for="basemapSelectMap">Basemap</label>
+        <select id="basemapSelectMap">
+          <option value="osm">OpenStreetMap</option>
+          <option value="cartoLight" selected>Light Canvas</option>
+          <option value="cartoDark">Dark Canvas</option>
+          <option value="topo">Topographic</option>
+          <option value="imagery">Satellite</option>
+        </select>
+      </div>
+      <div class="legend" id="legend"></div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const files = {
+      summary: "connectivity_summary.json",
+      cma: "CMA.geojson",
+      stops: "bus_stops_connectivity.geojson",
+      routes: "bus_routes_enriched.geojson",
+      facilities: "bus_facilities_enriched.geojson",
+      metroStations: "metro_stations_enriched.geojson",
+      suburbanStations: "suburban_stations_enriched.geojson",
+      metroBlueCorridor: "blue_line_metro_corridor.geojson",
+      metroGreenCorridor: "green_line_metro_corridor.geojson",
+      suburbanCorridor: "suburban_corridor.geojson"
+    };
+
+    const colours = {
+      "Direct": "#10b981",
+      "2 buses": "#f59e0b",
+      "3 buses": "#ef4444",
+      "4+ buses": "#991b1b",
+      "2 routes": "#f59e0b",
+      "3 routes": "#ef4444",
+      "4+ routes": "#991b1b",
+      "No route connection": "#64748b"
+    };
+
+    const basemaps = {
+      osm: {
+        url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        options: { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }
+      },
+      cartoLight: {
+        url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        options: { maxZoom: 20, attribution: "&copy; OpenStreetMap &copy; CARTO" }
+      },
+      cartoDark: {
+        url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        options: { maxZoom: 20, attribution: "&copy; OpenStreetMap &copy; CARTO" }
+      },
+      topo: {
+        url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        options: { maxZoom: 17, attribution: "OpenTopoMap" }
+      },
+      imagery: {
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        options: { maxZoom: 19, attribution: "svg" }
+      }
+    };
+
+    const map = L.map("map", { zoomControl: false, preferCanvas: true }).setView([13.08, 80.22], 11);
+    L.control.zoom({ position: "bottomleft" }).addTo(map);
+    let activeBasemap = L.tileLayer(basemaps.cartoLight.url, basemaps.cartoLight.options).addTo(map);
+
+    const layers = {};
+    let data = {};
+    let selectedRoute = "";
+    let analysisMode = "terminal_connectivity"; // 'terminal_connectivity' (Bus-Only) or 'multimodal_connectivity' (Multimodal)
+
+    function loadJSON(path) {
+      return fetch(path).then(response => {
+        if (!response.ok) throw new Error(`Failed to load ${path}`);
+        return response.json();
+      });
+    }
+
+    function fmt(value) {
+      return Number(value || 0).toLocaleString("en-IN");
+    }
+
+    function stopColour(props) {
+      return colours[props[analysisMode]] || "#64748b";
+    }
+
+    function stopVisible(props) {
+      if (!props.inside_cma) return false;
+      if (!selectedRoute) return true;
+      const r_list = Array.isArray(props.routes_clean) ? props.routes_clean : [];
+      return r_list.includes(selectedRoute);
+    }
+
+    function routeVisible(props) {
+      return !selectedRoute || props.route_name === selectedRoute;
+    }
+
+    function facilityIcon(props) {
+      return L.divIcon({
+        className: "",
+        html: `<div style="
+          width:22px;height:22px;
+          background:#d97706;
+          border:2.5px solid white;
+          box-shadow:0 2px 8px rgba(0,0,0,0.25);
+          border-radius:50%;
+          display:flex;align-items:center;justify-content:center;
+          color:white;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 10px; height: 10px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h7.5m-7.5 0h-1.5A2.25 2.25 0 013 16.5v-1.5m15 3.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.5a2.25 2.25 0 00 2.25-2.25v-1.5M16.5 15h-1.5m1.5 0V4.875c0-.621-.504-1.125-1.125-1.125h-9.75c-.621 0-1.125 0-1.125.011M16.5 15h-9m0 0V4.887m0 0c0-.621.504-1.125 1.125-1.125h9.75M16.5 9v1.5h-9V9" />
+            </svg>
+        </div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+    }
+
+    function metroStationIcon(props) {
+      const lines = props.Line || [];
+      const color = lines.includes("Blue") && lines.includes("Green") ? "#0f172a" : (lines.includes("Blue") ? "#2563eb" : "#16a34a");
+      return L.divIcon({
+        className: "",
+        html: `<div style="
+          width:22px;height:22px;
+          background:${color};
+          border:2.5px solid white;
+          box-shadow:0 2px 8px rgba(0,0,0,0.25);
+          border-radius:50%;
+          display:flex;align-items:center;justify-content:center;
+          color:white;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 10px; height: 10px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 4h14v10a2 2 0 01-2 2H7a2 2 0 01-2-2V4zm0 12l-2 4m18-4l2 4" />
+            </svg>
+        </div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+    }
+
+    function suburbanStationIcon(props) {
+      return L.divIcon({
+        className: "",
+        html: `<div style="
+          width:22px;height:22px;
+          background:#7c2d12;
+          border:2.5px solid white;
+          box-shadow:0 2px 8px rgba(0,0,0,0.25);
+          border-radius:6px;
+          display:flex;align-items:center;justify-content:center;
+          color:white;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 10px; height: 10px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20m0-20H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2h-6zm-4 6h8m-8 4h8m-4 4h.008v.008H12V16z" />
+            </svg>
+        </div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+    }
+
+    function disconnectedStopIcon() {
+      return L.divIcon({
+        className: "",
+        html: `<div style="
+          width:22px;height:22px;
+          background:#ef4444;
+          border:2.5px solid white;
+          box-shadow:0 2px 8px rgba(0,0,0,0.3);
+          border-radius:50%;
+          display:flex;align-items:center;justify-content:center;
+          color:white;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3.5" stroke="currentColor" style="width: 10px; height: 10px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.03L3.07 19.5a1.125 1.125 0 00.97 1.685h15.92a1.125 1.125 0 00.97-1.685L12 2.72zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+        </div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+    }
+
+    function popupGrid(title, rows) {
+      return `<div class="popup-title">${title}</div><div class="popup-grid">${
+        rows.map(([k, v]) => `<span>${k}</span><span>${v ?? "-"}</span>`).join("")
+      }</div>`;
+    }
+
+    function drawBars(elementId, counts, order) {
+      const el = document.getElementById(elementId);
+      const values = order.map(key => counts[key] || 0);
+      const max = Math.max(1, ...values);
+      el.innerHTML = order
+        .map(key => `
+          <div class="bar-row">
+            <div class="bar-label" title="${key}">${key}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${(counts[key] || 0) / max * 100}%; background:${colours[key] || "#2563eb"}"></div></div>
+            <div style="font-weight:700; text-align:right;">${fmt(counts[key] || 0)}</div>
+          </div>`)
+        .join("");
+    }
+
+    function updateLegend() {
+      const el = document.getElementById("legend");
+      if (analysisMode === "terminal_connectivity") {
+        const keys = ["Direct", "2 buses", "3 buses", "4+ buses", "No route connection"];
+        el.innerHTML = `
+          <div class="legend-title">Bus Stop to Terminal</div>
+          ${keys.map(key => `<div class="legend-row"><span class="swatch" style="background:${colours[key]}"></span>${key}</div>`).join("")}
+          <div class="legend-row">
+            <div style="width:14px;height:14px;background:#d97706;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 7px; height: 7px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h7.5m-7.5 0h-1.5A2.25 2.25 0 013 16.5v-1.5m15 3.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.5a2.25 2.25 0 00 2.25-2.25v-1.5M16.5 15h-1.5m1.5 0V4.875c0-.621-.504-1.125-1.125-1.125h-9.75c-.621 0-1.125 0-1.125.011M16.5 15h-9m0 0V4.887m0 0c0-.621.504-1.125 1.125-1.125h9.75M16.5 9v1.5h-9V9" />
+              </svg>
+            </div>
+            Bus terminal/facility
+          </div>
+          <div class="legend-row">
+            <div style="width:14px;height:14px;background:#ef4444;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3.5" stroke="currentColor" style="width: 7px; height: 7px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.03L3.07 19.5a1.125 1.125 0 00.97 1.685h15.92a1.125 1.125 0 00.97-1.685L12 2.72zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            Unconnected stop
+          </div>`;
+      } else {
+        const keys = ["Direct", "2 routes", "3 routes", "4+ routes", "No route connection"];
+        el.innerHTML = `
+          <div class="legend-title">Multimodal Connectivity</div>
+          ${keys.map(key => `<div class="legend-row"><span class="swatch" style="background:${colours[key]}"></span>${key}</div>`).join("")}
+          <div class="legend-row">
+            <div style="width:14px;height:14px;background:#2563eb;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 7px; height: 7px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 4h14v10a2 2 0 01-2 2H7a2 2 0 01-2-2V4zm0 12l-2 4m18-4l2 4" />
+              </svg>
+            </div>
+            Metro Station
+          </div>
+          <div class="legend-row">
+            <div style="width:14px;height:14px;background:#7c2d12;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 7px; height: 7px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20m0-20H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2h-6zm-4 6h8m-8 4h8m-4 4h.008v.008H12V16z" />
+              </svg>
+            </div>
+            Suburban Rail Station
+          </div>
+          <div class="legend-row"><span class="line-swatch" style="background:#2563eb"></span>Metro Blue Line</div>
+          <div class="legend-row"><span class="line-swatch" style="background:#16a34a"></span>Metro Green Line</div>
+          <div class="legend-row"><span class="line-swatch" style="background:#7c2d12; border-style: dashed; border-width: 1px 0 0 0; height: 1px;"></span>Suburban Rail Corridor</div>`;
+      }
+    }
+
+    function populateRouteSelect() {
+      const routeSelect = document.getElementById("routeSelect");
+      const routeNames = data.routes.features
+        .map(f => f.properties.route_name)
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      routeSelect.innerHTML = `<option value="">All routes</option>` + routeNames
+        .map(route => `<option value="${route}">${route}</option>`)
+        .join("");
+    }
+
+    function updateToggleStates() {
+      ["toggleRoutes", "toggleStops", "toggleFacilities", "toggleMetro", "toggleSuburban"].forEach(id => {
+        const checkbox = document.getElementById(id);
+        const parent = checkbox.closest('.toggle');
+        if (parent) {
+          parent.classList.toggle('active', checkbox.checked);
+        }
+      });
+    }
+
+    function redrawOperationalLayers() {
+      updateToggleStates();
+
+      // Remove previous operational layers
+      ["stops", "routes", "facilities", "metroStations", "suburbanStations", "metroBlueCorridor", "metroGreenCorridor", "suburbanCorridor"].forEach(name => {
+        if (layers[name]) map.removeLayer(layers[name]);
+      });
+
+      // 1. Bus routes
+      layers.routes = L.geoJSON(data.routes, {
+        filter: f => routeVisible(f.properties),
+        style: f => ({
+          color: "#f97316",
+          weight: selectedRoute ? 5 : 1.5,
+          opacity: selectedRoute ? 0.95 : 0.35
+        }),
+        onEachFeature: (f, layer) => {
+          const p = f.properties;
+          layer.bindPopup(popupGrid(`Route ${p.route_name}`, [
+            ["Source", p.source],
+            ["Destination", p.destinatio],
+            ["Stops Count", p.stop_count_in_dataset],
+            ["Serves Terminal", p.serves_terminal ? "Yes" : "No"]
+          ]));
+        }
+      });
+
+      // 2. Metro Corridors
+      layers.metroBlueCorridor = L.geoJSON(data.metroBlueCorridor, {
+        style: { color: "#2563eb", weight: 3.5, opacity: 0.85 }
+      });
+      layers.metroGreenCorridor = L.geoJSON(data.metroGreenCorridor, {
+        style: { color: "#16a34a", weight: 3.5, opacity: 0.85 }
+      });
+
+      // 3. Suburban Corridor
+      layers.suburbanCorridor = L.geoJSON(data.suburbanCorridor, {
+        style: { color: "#7c2d12", weight: 2.2, opacity: 0.75, dashArray: "5 5" }
+      });
+
+      // 4. Metro Stations
+      layers.metroStations = L.geoJSON(data.metroStations, {
+        pointToLayer: (f, latlng) => L.marker(latlng, { icon: metroStationIcon(f.properties) }),
+        onEachFeature: (f, layer) => {
+          const p = f.properties;
+          layer.bindPopup(popupGrid(p.Name, [
+            ["Type", "Metro Station"],
+            ["Served Line", p.Line ? p.Line.join(", ") : "-"],
+            ["Multimodal Access", "Direct"]
+          ]));
+        }
+      });
+
+      // 5. Suburban Stations
+      layers.suburbanStations = L.geoJSON(data.suburbanStations, {
+        pointToLayer: (f, latlng) => L.marker(latlng, { icon: suburbanStationIcon(f.properties) }),
+        onEachFeature: (f, layer) => {
+          const p = f.properties;
+          layer.bindPopup(popupGrid(p["STATION NA"], [
+            ["Type", "Suburban Railway Station"],
+            ["Station Code", p.Code || "-"],
+            ["Daily Ridership", p["Daily Ride"] ? fmt(p["Daily Ride"]) : "-"],
+            ["Multimodal Access", "Direct"]
+          ]));
+        }
+      });
+
+      // 6. Bus stops
+      layers.stops = L.geoJSON(data.stops, {
+        filter: f => stopVisible(f.properties),
+        pointToLayer: (f, latlng) => {
+          const p = f.properties;
+          const conn = p[analysisMode];
+          if (conn === "No route connection") {
+            return L.marker(latlng, { icon: disconnectedStopIcon(), zIndexOffset: 1000 });
+          }
+          return L.circleMarker(latlng, {
+            radius: selectedRoute ? 5 : 3,
+            fillColor: stopColour(p),
+            color: "#ffffff",
+            weight: 0.6,
+            fillOpacity: 0.85,
+            opacity: 0.9
+          });
+        },
+        onEachFeature: (f, layer) => {
+          const p = f.properties;
+          const listLabel = analysisMode === "terminal_connectivity" ? "Terminal Access" : "Multimodal Access";
+          const listVal = p[analysisMode];
+          layer.bindPopup(popupGrid(p["Stop Name"] || "Bus stop", [
+            ["Routes Served", Array.isArray(p.routes_clean) ? p.routes_clean.slice(0, 10).join(", ") : "-"],
+            [listLabel, listVal],
+            ["QA corrections", p.connectivity_qa_note || "-"]
+          ]));
+        }
+      });
+
+      // 7. Bus Facilities
+      layers.facilities = L.geoJSON(data.facilities, {
+        filter: f => f.properties.inside_cma,
+        pointToLayer: (f, latlng) => L.marker(latlng, { icon: facilityIcon(f.properties) }),
+        onEachFeature: (f, layer) => {
+          const p = f.properties;
+          layer.bindPopup(popupGrid(p.name, [
+            ["Type", p.facility_type],
+            ["Ownership", p.ownership],
+            ["Served Routes", p.served_route_count],
+            ["Source File", p.source]
+          ]));
+        }
+      });
+
+      // Add to map based on checkboxes
+      if (document.getElementById("toggleRoutes").checked) layers.routes.addTo(map);
+      if (document.getElementById("toggleStops").checked) layers.stops.addTo(map);
+      if (document.getElementById("toggleFacilities").checked) layers.facilities.addTo(map);
+      
+      if (document.getElementById("toggleMetro").checked) {
+        layers.metroBlueCorridor.addTo(map);
+        layers.metroGreenCorridor.addTo(map);
+        layers.metroStations.addTo(map);
+      }
+      if (document.getElementById("toggleSuburban").checked) {
+        layers.suburbanCorridor.addTo(map);
+        layers.suburbanStations.addTo(map);
+      }
+
+      if (selectedRoute && layers.routes.getBounds().isValid()) {
+        map.fitBounds(layers.routes.getBounds(), { padding: [28, 28], maxZoom: 13 });
+      }
+
+      const visibleStops = data.stops.features.filter(f => stopVisible(f.properties)).length;
+      document.getElementById("statusPill").textContent = selectedRoute
+        ? `Route ${selectedRoute}: ${fmt(visibleStops)} stops displayed`
+        : `${fmt(visibleStops)} bus stops analyzed inside CMA`;
+      
+      updateLegend();
+    }
+
+    function buildStaticLayers() {
+      layers.cma = L.geoJSON(data.cma, {
+        style: { color: "#475569", weight: 2.2, fillColor: "#ffffff", fillOpacity: 0.02, dashArray: "6 4" }
+      }).addTo(map);
+
+      map.fitBounds(layers.cma.getBounds(), { padding: [24, 24] });
+    }
+
+    function setBasemap(value) {
+      const next = basemaps[value] || basemaps.cartoLight;
+      map.removeLayer(activeBasemap);
+      activeBasemap = L.tileLayer(next.url, next.options).addTo(map);
+      activeBasemap.bringToBack();
+      document.getElementById("basemapSelectMap").value = value;
+    }
+
+    function switchMode(mode) {
+      analysisMode = mode;
+      
+      // Update toggle buttons
+      document.getElementById("btnBusOnly").classList.toggle("active", mode === "terminal_connectivity");
+      document.getElementById("btnMultimodal").classList.toggle("active", mode === "multimodal_connectivity");
+
+      // Update KPI Labels and Values
+      const isMultimodal = mode === "multimodal_connectivity";
+      document.getElementById("kpiDirectLabel").textContent = isMultimodal ? "Direct multimodal access" : "Direct to terminal";
+      document.getElementById("kpiFacilitiesLabel").textContent = isMultimodal ? "Total multimodal hubs" : "Bus facilities";
+      document.getElementById("breakdownTitle").textContent = isMultimodal ? "Multimodal Connectivity" : "Terminal Connectivity";
+
+      if (isMultimodal) {
+        document.getElementById("kpiTerminalDirect").textContent = fmt(data.summary.multimodal_connectivity_counts.Direct);
+        const totalHubs = data.summary.counts.bus_facilities_inside_cma + data.summary.counts.metro_stations + data.summary.counts.suburban_stations;
+        document.getElementById("kpiFacilities").textContent = fmt(totalHubs);
+        
+        // Render Bars
+        drawBars("connectivityBars", data.summary.multimodal_connectivity_counts, ["Direct", "2 routes", "3 routes", "4+ routes", "No route connection"]);
+      } else {
+        document.getElementById("kpiTerminalDirect").textContent = fmt(data.summary.bus_only_connectivity_counts.Direct);
+        document.getElementById("kpiFacilities").textContent = fmt(data.summary.counts.bus_facilities_inside_cma);
+        
+        // Render Bars
+        drawBars("connectivityBars", data.summary.bus_only_connectivity_counts, ["Direct", "2 buses", "3 buses", "4+ buses", "No route connection"]);
+      }
+
+      redrawOperationalLayers();
+    }
+
+    function bindControls() {
+      document.getElementById("basemapSelectMap").addEventListener("change", event => {
+        setBasemap(event.target.value);
+      });
+      document.getElementById("routeSelect").addEventListener("change", event => {
+        selectedRoute = event.target.value;
+        redrawOperationalLayers();
+      });
+      ["toggleRoutes", "toggleStops", "toggleFacilities", "toggleMetro", "toggleSuburban"].forEach(id => {
+        document.getElementById(id).addEventListener("change", redrawOperationalLayers);
+      });
+    }
+
+    Promise.all(Object.entries(files).map(([key, path]) => loadJSON(path).then(json => [key, json])))
+      .then(entries => {
+        data = Object.fromEntries(entries);
+        
+        // Initial KPI load (Bus-Only)
+        document.getElementById("kpiStops").textContent = fmt(data.summary.counts.bus_stops_inside_cma);
+        populateRouteSelect();
+        buildStaticLayers();
+        bindControls();
+        
+        // Trigger initial mode load (Bus-Only)
+        switchMode("terminal_connectivity");
+      })
+      .catch(error => {
+        document.getElementById("statusPill").textContent = error.message;
+        console.error(error);
+      });
+  </script>
+</body>
+</html>

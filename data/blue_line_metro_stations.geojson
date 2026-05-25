@@ -1,0 +1,33 @@
+{
+"type": "FeatureCollection",
+"name": "blue_line_metro_stations",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "Name": "AG-DMS" }, "geometry": { "type": "Point", "coordinates": [ 80.248085441000057, 13.045118783000074, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "CHENNAI AIRPORT" }, "geometry": { "type": "Point", "coordinates": [ 80.164109391000068, 12.98077272300003, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "MEENAMBAKKAM" }, "geometry": { "type": "Point", "coordinates": [ 80.176220489000059, 12.987574694000045, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "OTA - NANGANALLUR ROAD" }, "geometry": { "type": "Point", "coordinates": [ 80.193920734000073, 12.999836763000076, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "ALANDUR" }, "geometry": { "type": "Point", "coordinates": [ 80.201522946000068, 13.004254619000049, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "GUINDY" }, "geometry": { "type": "Point", "coordinates": [ 80.213079399000037, 13.009272010000075, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "LITTLE MOUNT" }, "geometry": { "type": "Point", "coordinates": [ 80.223870442000077, 13.014458419000052, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "SAIDAPET" }, "geometry": { "type": "Point", "coordinates": [ 80.228296023000041, 13.023613043000067, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "NANDANAM" }, "geometry": { "type": "Point", "coordinates": [ 80.241071591000036, 13.031544400000028, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "TEYNAMPET" }, "geometry": { "type": "Point", "coordinates": [ 80.246514590000061, 13.036976433000063, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "THOUSAND LIGHT" }, "geometry": { "type": "Point", "coordinates": [ 80.258596634000071, 13.058332329000054, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "LIC" }, "geometry": { "type": "Point", "coordinates": [ 80.26602130100008, 13.064538235000041, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "GOVERNMENT ESTATe" }, "geometry": { "type": "Point", "coordinates": [ 80.272915088000047, 13.069476569000074, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "CENTRAL METRO" }, "geometry": { "type": "Point", "coordinates": [ 80.273995899000056, 13.081523562000031, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "HIGH COURT" }, "geometry": { "type": "Point", "coordinates": [ 80.285057079000069, 13.087341319000073, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "MANNADI" }, "geometry": { "type": "Point", "coordinates": [ 80.286159224000073, 13.095400808000022, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "WASHERMANPET" }, "geometry": { "type": "Point", "coordinates": [ 80.280967130000079, 13.107674470000063, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "THIYAGARAYA COLLEGE" }, "geometry": { "type": "Point", "coordinates": [ 80.284945977000064, 13.116248316000053, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "TONDIARPET" }, "geometry": { "type": "Point", "coordinates": [ 80.288530250000065, 13.124063860000037, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "NEW WASHERMENPET" }, "geometry": { "type": "Point", "coordinates": [ 80.292920890000062, 13.134308961000043, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "TOLLGATE" }, "geometry": { "type": "Point", "coordinates": [ 80.29634547600007, 13.143197774000045, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "KALADIPET" }, "geometry": { "type": "Point", "coordinates": [ 80.299525107000079, 13.150910244000045, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "THIRUVOTRIYUR THERADI" }, "geometry": { "type": "Point", "coordinates": [ 80.302360209000085, 13.159797204000029, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "THIRUVOTRIYUR" }, "geometry": { "type": "Point", "coordinates": [ 80.305315581000059, 13.17191245600003, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "WIMCO NAGAR METRO" }, "geometry": { "type": "Point", "coordinates": [ 80.307352619000085, 13.179260065000051, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "WIMCO NAGAR DEPOT" }, "geometry": { "type": "Point", "coordinates": [ 80.309425170000054, 13.180860816000063, 0.0 ] } }
+]
+}

@@ -1,0 +1,26 @@
+{
+  "generated_from": "/Users/bharatoraon/Desktop/Project_1/data",
+  "method": {
+    "bus_only_connectivity": "RAPTOR Round-Based Transit routing on MTC bus routes only.",
+    "multimodal_connectivity": "Multimodal RAPTOR routing incorporating Bus + Metro (Blue/Green) + Suburban Rail lines with walking transfers under 200m.",
+    "qa_corrections": "Manual validation overrides applied for CMBT and Kundrathur depot stop locations."
+  },
+  "counts": {
+    "routes": 637,
+    "bus_stops": 5608,
+    "bus_stops_inside_cma": 4145,
+    "metro_stations": 41,
+    "suburban_stations": 51,
+    "bus_facilities_total": 90,
+    "bus_facilities_inside_cma": 78,
+    "inferred_terminal_points": 15
+  },
+  "bus_only_connectivity_counts": {
+    "Direct": 3955,
+    "2 buses": 190
+  },
+  "multimodal_connectivity_counts": {
+    "Direct": 4067,
+    "2 routes": 78
+  }
+}
