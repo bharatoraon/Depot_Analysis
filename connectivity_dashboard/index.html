@@ -1147,9 +1147,15 @@
             ? (accList.length > 5 ? accList.slice(0, 5).join(", ") + "..." : accList.join(", "))
             : "None";
 
+          const closestName = isMultimodal ? p.closest_hub : p.closest_terminal;
+          const closestDist = isMultimodal ? p.closest_hub_dist : p.closest_terminal_dist;
+          const closestLabel = isMultimodal ? "Closest Hub" : "Closest Terminal";
+          const closestStr = closestName ? `${closestName} (${closestDist} km)` : "None";
+
           layer.bindPopup(popupGrid(p["Stop Name"] || "Bus stop", [
             ["Routes Served", Array.isArray(p.routes_clean) ? p.routes_clean.slice(0, 10).join(", ") : "-"],
             [listLabel, listVal],
+            [closestLabel, closestStr],
             [accLabel, accStr],
             ["QA corrections", p.connectivity_qa_note || "-"]
           ]));
@@ -1157,13 +1163,9 @@
           // Setup hover tooltip
           let tooltipHtml = `<div style="font-family: inherit; font-size: 11px; padding: 2px;">
             <strong style="color: #0f172a;">${p["Stop Name"] || "Bus stop"}</strong>`;
-          if (Array.isArray(accList) && accList.length > 0) {
-            const displayLimit = 5;
-            const shownList = accList.slice(0, displayLimit).join(", ");
-            const extraCount = accList.length - displayLimit;
-            const extraText = extraCount > 0 ? ` (+${extraCount} more)` : "";
-            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">Accessible to:</span>
-                           <br/><span style="color: #0284c7; font-weight: 700;">${shownList}${extraText}</span>`;
+          if (closestName) {
+            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">${closestLabel}:</span>
+                           <br/><span style="color: #0284c7; font-weight: 700;">${closestName} (${closestDist} km)</span>`;
           } else {
             tooltipHtml += `<br/><span style="color: #ef4444; font-weight: 550;">No terminal access</span>`;
           }

@@ -665,6 +665,37 @@ def main():
         acc_terms = sorted(list(set(nodes[tid]["name"] for tid in bus_only_acc.get(sid, []) if tid in nodes)))
         acc_hubs = sorted(list(set(nodes[tid]["name"] for tid in multimodal_acc.get(sid, []) if tid in nodes)))
 
+        # Find closest accessible terminal geographically
+        stop_geom_m = nodes[sid]["geom_m"]
+        terminals_with_dist = []
+        for tid in bus_only_acc.get(sid, []):
+            if tid in nodes:
+                dist_m = stop_geom_m.distance(nodes[tid]["geom_m"])
+                terminals_with_dist.append((nodes[tid]["name"], dist_m))
+        
+        if terminals_with_dist:
+            terminals_with_dist.sort(key=lambda x: x[1])
+            closest_term_name = terminals_with_dist[0][0]
+            closest_term_dist = round(terminals_with_dist[0][1] / 1000.0, 2)
+        else:
+            closest_term_name = None
+            closest_term_dist = None
+
+        # Find closest accessible hub geographically
+        hubs_with_dist = []
+        for tid in multimodal_acc.get(sid, []):
+            if tid in nodes:
+                dist_m = stop_geom_m.distance(nodes[tid]["geom_m"])
+                hubs_with_dist.append((nodes[tid]["name"], dist_m))
+
+        if hubs_with_dist:
+            hubs_with_dist.sort(key=lambda x: x[1])
+            closest_hub_name = hubs_with_dist[0][0]
+            closest_hub_dist = round(hubs_with_dist[0][1] / 1000.0, 2)
+        else:
+            closest_hub_name = None
+            closest_hub_dist = None
+
         props = dict(ft.get("properties", {}))
         qa_note = qa_facility_overrides.get(sid, "")
         props.update(
@@ -674,6 +705,10 @@ def main():
                 "inside_cma": in_cma,
                 "accessible_terminals": acc_terms,
                 "accessible_hubs": acc_hubs,
+                "closest_terminal": closest_term_name,
+                "closest_terminal_dist": closest_term_dist,
+                "closest_hub": closest_hub_name,
+                "closest_hub_dist": closest_hub_dist,
                 # Bus-only metrics (Keep keys same to maintain backward compatibility where needed)
                 "terminal_min_buses": terminal_buses,
                 "terminal_connectivity": bucket_for_buses(terminal_buses),
