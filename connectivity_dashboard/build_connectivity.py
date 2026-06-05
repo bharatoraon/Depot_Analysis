@@ -99,26 +99,23 @@ def bucket_for_multimodal(routes_count):
 
 
 def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_route_types=None):
-    min_routes = {nid: float("inf") for nid in nodes}
-    accessible_targets = {nid: set() for nid in nodes}
-    reached = set()
-
+    # accessible_targets[nid] = {target_id: minimum_hops}
+    accessible_targets = {nid: {} for nid in nodes}
+    
+    # Round 0: Direct terminal/depot and their walking neighbors
     for t in target_nodes:
-        if t in min_routes:
-            min_routes[t] = 0
-            accessible_targets[t].add(t)
-            reached.add(t)
+        if t in accessible_targets:
+            accessible_targets[t][t] = 0
             if t in footpaths:
                 for nbr in footpaths[t]:
-                    if nbr in min_routes:
-                        min_routes[nbr] = 0
-                        accessible_targets[nbr].add(t)
-                        reached.add(nbr)
-
-    current_stops = reached
+                    if nbr in accessible_targets:
+                        accessible_targets[nbr][t] = 0
+    
+    last_round_updated = {nid for nid, targets in accessible_targets.items() if any(h == 0 for h in targets.values())}
+    
     for r in range(1, 4):
         route_targets = {}
-        for stop in current_stops:
+        for stop in last_round_updated:
             if stop in stop_routes:
                 for route_id in stop_routes[stop]:
                     if allowed_route_types is not None:
@@ -131,40 +128,53 @@ def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_rout
                             continue
                     if route_id not in route_targets:
                         route_targets[route_id] = set()
-                    route_targets[route_id].update(accessible_targets[stop])
-
-        new_stops = set()
+                    for t, hops in accessible_targets[stop].items():
+                        if hops == r - 1:
+                            route_targets[route_id].add(t)
+                            
+        new_stops_updated = set()
         for route_id, tgts in route_targets.items():
             if route_id in routes:
                 for stop in routes[route_id]:
-                    if stop not in min_routes:
+                    if stop not in accessible_targets:
                         continue
-                    if min_routes[stop] > r:
-                        min_routes[stop] = r
-                        new_stops.add(stop)
-                    if min_routes[stop] == r:
-                        accessible_targets[stop].update(tgts)
-
-        walk_stops = set()
-        for stop in new_stops:
+                    updated_stop = False
+                    for t in tgts:
+                        if t not in accessible_targets[stop] or accessible_targets[stop][t] > r:
+                            accessible_targets[stop][t] = r
+                            updated_stop = True
+                    if updated_stop:
+                        new_stops_updated.add(stop)
+                        
+        walk_stops_updated = set()
+        for stop in new_stops_updated:
             if stop in footpaths:
                 for nbr in footpaths[stop]:
                     if allowed_route_types is not None and len(allowed_route_types) == 1:
-                        # Bus-only mode: only walk to bus stops or terminals
                         if not (nbr.startswith("stop_") or nbr.startswith("terminal_") or nbr.startswith("depot_")):
                             continue
-                    if nbr not in min_routes:
+                    if nbr not in accessible_targets:
                         continue
-                    if min_routes[nbr] > r:
-                        min_routes[nbr] = r
-                        walk_stops.add(nbr)
-                    if min_routes[nbr] == r:
-                        accessible_targets[nbr].update(accessible_targets[stop])
-
-        current_stops = new_stops.union(walk_stops)
-        if not current_stops:
+                    updated_nbr = False
+                    for t, hops in accessible_targets[stop].items():
+                        if hops == r:
+                            if t not in accessible_targets[nbr] or accessible_targets[nbr][t] > r:
+                                accessible_targets[nbr][t] = r
+                                updated_nbr = True
+                    if updated_nbr:
+                        walk_stops_updated.add(nbr)
+                        
+        last_round_updated = new_stops_updated.union(walk_stops_updated)
+        if not last_round_updated:
             break
-
+            
+    min_routes = {}
+    for nid, targets in accessible_targets.items():
+        if targets:
+            min_routes[nid] = min(targets.values())
+        else:
+            min_routes[nid] = float("inf")
+            
     return min_routes, accessible_targets
 
 
@@ -639,11 +649,11 @@ def main():
             bus_only_dist[sid] = 1
             multimodal_dist[sid] = 1
             if sid not in bus_only_acc:
-                bus_only_acc[sid] = set()
-            bus_only_acc[sid].add(sid)
+                bus_only_acc[sid] = {}
+            bus_only_acc[sid][sid] = 0
             if sid not in multimodal_acc:
-                multimodal_acc[sid] = set()
-            multimodal_acc[sid].add(sid)
+                multimodal_acc[sid] = {}
+            multimodal_acc[sid][sid] = 0
 
     # 9. Enrich and export Bus Stops
     print("Enriching bus stops connectivity metadata...", flush=True)
@@ -653,48 +663,48 @@ def main():
         geom = shape(ft["geometry"])
         in_cma = bool(cma_prepared.covers(geom))
 
-        # Bus-Only
-        bo_d = bus_only_dist.get(sid, float("inf"))
-        terminal_buses = None if bo_d == float("inf") else (1 if bo_d == 0 else bo_d)
-
-        # Multimodal
-        mm_d = multimodal_dist.get(sid, float("inf"))
-        multimodal_routes = None if mm_d == float("inf") else (1 if mm_d == 0 else mm_d)
-
         # Compile names of accessible terminals and hubs
-        acc_terms = sorted(list(set(nodes[tid]["name"] for tid in bus_only_acc.get(sid, []) if tid in nodes)))
-        acc_hubs = sorted(list(set(nodes[tid]["name"] for tid in multimodal_acc.get(sid, []) if tid in nodes)))
+        acc_terms = sorted(list(set(nodes[tid]["name"] for tid in bus_only_acc.get(sid, {}) if tid in nodes)))
+        acc_hubs = sorted(list(set(nodes[tid]["name"] for tid in multimodal_acc.get(sid, {}) if tid in nodes)))
 
         # Find closest accessible terminal geographically
         stop_geom_m = nodes[sid]["geom_m"]
         terminals_with_dist = []
-        for tid in bus_only_acc.get(sid, []):
+        for tid, hops in bus_only_acc.get(sid, {}).items():
             if tid in nodes:
                 dist_m = stop_geom_m.distance(nodes[tid]["geom_m"])
-                terminals_with_dist.append((nodes[tid]["name"], dist_m))
+                terminals_with_dist.append((tid, nodes[tid]["name"], dist_m, hops))
         
         if terminals_with_dist:
-            terminals_with_dist.sort(key=lambda x: x[1])
-            closest_term_name = terminals_with_dist[0][0]
-            closest_term_dist = round(terminals_with_dist[0][1] / 1000.0, 2)
+            terminals_with_dist.sort(key=lambda x: x[2])
+            closest_term_id = terminals_with_dist[0][0]
+            closest_term_name = terminals_with_dist[0][1]
+            closest_term_dist = round(terminals_with_dist[0][2] / 1000.0, 2)
+            closest_term_hops = terminals_with_dist[0][3]
+            terminal_buses = 1 if closest_term_hops <= 1 else closest_term_hops
         else:
             closest_term_name = None
             closest_term_dist = None
+            terminal_buses = None
 
         # Find closest accessible hub geographically
         hubs_with_dist = []
-        for tid in multimodal_acc.get(sid, []):
+        for tid, hops in multimodal_acc.get(sid, {}).items():
             if tid in nodes:
                 dist_m = stop_geom_m.distance(nodes[tid]["geom_m"])
-                hubs_with_dist.append((nodes[tid]["name"], dist_m))
+                hubs_with_dist.append((tid, nodes[tid]["name"], dist_m, hops))
 
         if hubs_with_dist:
-            hubs_with_dist.sort(key=lambda x: x[1])
-            closest_hub_name = hubs_with_dist[0][0]
-            closest_hub_dist = round(hubs_with_dist[0][1] / 1000.0, 2)
+            hubs_with_dist.sort(key=lambda x: x[2])
+            closest_hub_id = hubs_with_dist[0][0]
+            closest_hub_name = hubs_with_dist[0][1]
+            closest_hub_dist = round(hubs_with_dist[0][2] / 1000.0, 2)
+            closest_hub_hops = hubs_with_dist[0][3]
+            multimodal_routes = 1 if closest_hub_hops <= 1 else closest_hub_hops
         else:
             closest_hub_name = None
             closest_hub_dist = None
+            multimodal_routes = None
 
         props = dict(ft.get("properties", {}))
         qa_note = qa_facility_overrides.get(sid, "")

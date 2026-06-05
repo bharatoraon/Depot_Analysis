@@ -16,11 +16,13 @@
     "inferred_terminal_points": 15
   },
   "bus_only_connectivity_counts": {
-    "Direct": 3955,
-    "2 buses": 190
+    "2 buses": 1557,
+    "Direct": 2515,
+    "3 buses": 73
   },
   "multimodal_connectivity_counts": {
-    "Direct": 4067,
-    "2 routes": 78
+    "2 routes": 1535,
+    "Direct": 2522,
+    "3 routes": 88
   }
 }
