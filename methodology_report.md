@@ -15,7 +15,7 @@ Below are the visual reference charts detailing the implementation methodology:
 
 ### 1. System ETL & Data Processing Flowchart
 
-![System Methodology Flowchart](methodology_flowchart.png)
+![System Methodology Flowchart](methodology_flowchart.svg)
 
 ```mermaid
 graph TD
@@ -71,7 +71,7 @@ graph TD
 
 ### 2. Stop Connectivity Classification Decision Tree
 
-![Stop Connectivity Classification Decision Tree](connectivity_decision_tree.png)
+![Stop Connectivity Classification Decision Tree](connectivity_decision_tree.svg)
 
 ```mermaid
 flowchart TD
