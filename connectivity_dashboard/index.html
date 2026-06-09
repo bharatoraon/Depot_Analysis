@@ -635,7 +635,7 @@
             <span class="switch-slider"></span>
           </label>
         </div>
-        <p class="subtitle" style="margin-top: -2px; margin-bottom: 0;">Isolate and locate underserved stops on the map (190 for Bus-Only, 78 for Multimodal).</p>
+        <p class="subtitle" style="margin-top: -2px; margin-bottom: 0;">Isolate and locate underserved stops on the map (those requiring transfers).</p>
       </div>
 
       <!-- Underserved List Section -->
@@ -773,10 +773,10 @@
     function stopVisible(props) {
       if (!props.inside_cma) return false;
       
-      // If Underserved Focus is active, show only non-direct stops (those requiring 2 buses or 2 routes)
+      // If Underserved Focus is active, show only non-direct stops (those requiring transfers)
       if (underservedActive) {
         const conn = props[analysisMode];
-        if (conn !== "2 buses" && conn !== "2 routes") {
+        if (conn === "Direct") {
           return false;
         }
       }
@@ -826,7 +826,7 @@
       const items = data.stops.features.filter(f => {
         if (!f.properties.inside_cma) return false;
         const conn = f.properties[analysisMode];
-        const isUnderserved = conn === "2 buses" || conn === "2 routes";
+        const isUnderserved = conn !== "Direct";
         if (!isUnderserved) return false;
         
         if (searchVal) {
