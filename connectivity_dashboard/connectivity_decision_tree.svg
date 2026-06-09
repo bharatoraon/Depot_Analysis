@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 1020" width="980" height="1020" style="background-color: #0f172a; border-radius: 12px; font-family: system-ui, -apple-system, sans-serif;">
+  <defs>
+    <!-- Background Gradient for Cards -->
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    
+    <!-- Primary Flow Gradient (Blue) -->
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    
+    <!-- Yes Path Gradient (Teal) -->
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#0f766e" />
+    </linearGradient>
+
+    <!-- No Path Gradient (Rose/Red) -->
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#be123c" />
+    </linearGradient>
+
+    <!-- Arrow Head Marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b" />
+    </marker>
+  </defs>
+  
+  <!-- Outer Title -->
+  <text x="490" y="45" font-size="20" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="0.05em">STOP CONNECTIVITY CLASSIFICATION DECISION TREE</text>
+  <text x="490" y="68" font-size="12" font-weight="500" fill="#94a3b8" text-anchor="middle">Step-by-step logic gates determining stop classification and dashboard filtering</text>
+  <rect x="370" y="95" width="240" height="45" rx="8" fill="url(#primaryGrad)" stroke="#334155" stroke-width="1.5" />
+  <text x="490.0" y="121.5" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle">Start: Transit Stop Node</text>
+  <line x1="490" y1="140" x2="490" y2="180" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <polygon points="490.0,180 620,217.5 490.0,255 360,217.5" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5" />
+  <text x="490.0" y="212.5" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Inside CMA Boundary?</text>
+  <text x="490.0" y="229.5" font-size="10" fill="#38bdf8" text-anchor="middle">Check geometry spatial join</text>
+  <line x1="620" y1="217.5" x2="730" y2="217.5" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="675.0" y="209.5" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">No</text>
+  <rect x="730" y="192.5" width="200" height="50" rx="8" fill="url(#redGrad)" stroke="#334155" stroke-width="1.5" />
+  <text x="830.0" y="214.5" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Exclude from Dashboard</text>
+  <text x="830.0" y="232.5" font-size="11" fill="#94a3b8" text-anchor="middle">Pruned from map and statistics</text>
+  <line x1="490" y1="255" x2="490" y2="295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="500.0" y="275.0" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">Yes</text>
+  <rect x="290" y="295" width="400" height="60" rx="8" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
+  <text x="490.0" y="317" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Run RAPTOR Routing Engine</text>
+  <text x="490.0" y="335" font-size="11" fill="#94a3b8" text-anchor="middle">Traverse MTC route edges & walk transfer footpaths</text>
+  <text x="490.0" y="351" font-size="11" fill="#94a3b8" text-anchor="middle">Record routing round (hops) to all reachable hubs</text>
+  <line x1="490" y1="355" x2="490" y2="395" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <polygon points="490.0,395 630,435.0 490.0,475 350,435.0" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5" />
+  <text x="490.0" y="430.0" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Are Hubs/Terminals Reachable?</text>
+  <text x="490.0" y="447.0" font-size="10" fill="#38bdf8" text-anchor="middle">Lookup RAPTOR search status</text>
+  <line x1="630" y1="435" x2="730" y2="435" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="680.0" y="427.0" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">No</text>
+  <rect x="730" y="410" width="200" height="55" rx="8" fill="url(#redGrad)" stroke="#334155" stroke-width="1.5" />
+  <text x="830.0" y="432" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">No Route Connection</text>
+  <text x="830.0" y="450" font-size="11" fill="#94a3b8" text-anchor="middle">Classify: Transit Desert (No Hub)</text>
+  <line x1="490" y1="475" x2="490" y2="515" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="500.0" y="495.0" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">Yes</text>
+  <rect x="270" y="515" width="440" height="65" rx="8" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
+  <text x="490.0" y="537" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Project Coordinates & Sort</text>
+  <text x="490.0" y="555" font-size="11" fill="#94a3b8" text-anchor="middle">Project coordinates to local metric CRS (EPSG:32644)</text>
+  <text x="490.0" y="571" font-size="11" fill="#94a3b8" text-anchor="middle">Calculate Euclidean straight-line distance to all reachable hubs</text>
+  <text x="490.0" y="587" font-size="11" fill="#94a3b8" text-anchor="middle">Select Hub with MINIMUM geographic distance as representative closest</text>
+  <line x1="490" y1="580" x2="490" y2="620" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <polygon points="490.0,620 660,660.0 490.0,700 320,660.0" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5" />
+  <text x="490.0" y="655.0" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Transfers to Closest Hub?</text>
+  <text x="490.0" y="672.0" font-size="10" fill="#38bdf8" text-anchor="middle">Check round in which hub was reached</text>
+  <line x1="320" y1="660" x2="120" y2="660" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="120" y1="660" x2="120" y2="735" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="100.0" y="697.5" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">0 transfers</text>
+  <rect x="30" y="735" width="180" height="55" rx="8" fill="url(#tealGrad)" stroke="#14b8a6" stroke-width="1.5" />
+  <text x="120.0" y="757" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Direct Connectivity</text>
+  <text x="120.0" y="775" font-size="11" fill="#94a3b8" text-anchor="middle">Reached in Round 0/1</text>
+  <text x="120.0" y="791" font-size="11" fill="#94a3b8" text-anchor="middle">(1 bus ride to closest hub)</text>
+  <line x1="400" y1="700" x2="400" y2="735" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="380.0" y="717.5" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">1 transfer</text>
+  <rect x="240" y="735" width="180" height="55" rx="8" fill="url(#tealGrad)" stroke="#14b8a6" stroke-width="1.5" />
+  <text x="330.0" y="757" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">2 Buses / Routes</text>
+  <text x="330.0" y="775" font-size="11" fill="#94a3b8" text-anchor="middle">Reached in Round 2</text>
+  <text x="330.0" y="791" font-size="11" fill="#94a3b8" text-anchor="middle">(1 transfer to closest hub)</text>
+  <line x1="580" y1="700" x2="580" y2="735" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="590.0" y="717.5" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">2 transfers</text>
+  <rect x="450" y="735" width="180" height="55" rx="8" fill="url(#tealGrad)" stroke="#14b8a6" stroke-width="1.5" />
+  <text x="540.0" y="757" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">3 Buses / Routes</text>
+  <text x="540.0" y="775" font-size="11" fill="#94a3b8" text-anchor="middle">Reached in Round 3</text>
+  <text x="540.0" y="791" font-size="11" fill="#94a3b8" text-anchor="middle">(2 transfers to closest hub)</text>
+  <line x1="660" y1="660" x2="850" y2="660" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="850" y1="660" x2="850" y2="735" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="860.0" y="697.5" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">3+ transfers</text>
+  <rect x="760" y="735" width="180" height="55" rx="8" fill="url(#redGrad)" stroke="#334155" stroke-width="1.5" />
+  <text x="850.0" y="757" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">4+ Buses / Routes</text>
+  <text x="850.0" y="775" font-size="11" fill="#94a3b8" text-anchor="middle">Reached in Round 4+</text>
+  <text x="850.0" y="791" font-size="11" fill="#94a3b8" text-anchor="middle">(3+ transfers / Transit Desert)</text>
+  <line x1="120" y1="790" x2="120" y2="840" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="330" y1="790" x2="330" y2="840" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="540" y1="790" x2="540" y2="840" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="850" y1="790" x2="850" y2="840" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="120" y1="840" x2="850" y2="840" stroke="#64748b" stroke-width="1.5" />
+  <line x1="830" y1="465" x2="940" y2="465" stroke="#64748b" stroke-width="1.5" />
+  <line x1="940" y1="465" x2="940" y2="840" stroke="#64748b" stroke-width="1.5" />
+  <line x1="940" y1="840" x2="850" y2="840" stroke="#64748b" stroke-width="1.5" />
+  <line x1="490" y1="840" x2="490" y2="880" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <polygon points="490.0,880 630,917.5 490.0,955 350,917.5" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5" />
+  <text x="490.0" y="912.5" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Underserved Focus Enabled?</text>
+  <text x="490.0" y="929.5" font-size="10" fill="#38bdf8" text-anchor="middle">Dashboard toggle switch state</text>
+  <line x1="630" y1="917.5" x2="730" y2="917.5" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="680.0" y="909.5" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">Yes</text>
+  <rect x="730" y="892.5" width="215" height="50" rx="8" fill="url(#tealGrad)" stroke="#14b8a6" stroke-width="1.5" />
+  <text x="837.5" y="914.5" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Display Isolated Desert List</text>
+  <text x="837.5" y="932.5" font-size="11" fill="#94a3b8" text-anchor="middle">Show 3+ routes & disconnected</text>
+  <line x1="350" y1="917.5" x2="250" y2="917.5" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="300.0" y="909.5" font-size="10" font-weight="bold" fill="#94a3b8" text-anchor="middle">No</text>
+  <rect x="35" y="892.5" width="215" height="50" rx="8" fill="url(#primaryGrad)" stroke="#334155" stroke-width="1.5" />
+  <text x="142.5" y="914.5" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Display Complete Stop Layer</text>
+  <text x="142.5" y="932.5" font-size="11" fill="#94a3b8" text-anchor="middle">Render all connectivity classes</text>
+</svg>
