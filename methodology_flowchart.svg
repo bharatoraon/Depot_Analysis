@@ -26,27 +26,27 @@
   <rect x="65" y="115" width="36" height="24" rx="4" fill="url(#leftBoxGrad)" />
   <text x="83" y="132" font-size="12" font-weight="800" fill="#ffffff" text-anchor="middle">1</text>
   <text x="112" y="131" font-size="13" font-weight="700" fill="#ffffff" text-anchor="start">Input Data Layers</text>
-  <text x="65" y="165" font-size="11" font-weight="500" fill="#38bdf8" text-anchor="start">Spatial datasets & rail corridors</text>
+  <text x="65" y="165" font-size="11" font-weight="500" fill="#38bdf8" text-anchor="start">Spatial datasets &amp; rail corridors</text>
   <rect x="65" y="175" width="260" height="1" fill="#334155" />
   <!-- Step 1 Right Box -->
   <rect x="365" y="100" width="505" height="105" rx="8" fill="url(#cardGrad)" stroke="#1e293b" stroke-width="1.5" />
   <text x="385" y="125" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• MTC Bus Stops (GeoJSON):</tspan> 4,145 point locations with route arrays</text>
   <text x="385" y="143" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• MTC Bus Routes (GeoJSON):</tspan> LineString geometries and destinations</text>
-  <text x="385" y="161" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Bus Termini / Depots (GeoJSON):</tspan> 28 mapped & inferred terminal points</text>
-  <text x="385" y="179" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Metro & Suburban Rail (GeoJSON):</tspan> Station points & line segments</text>
+  <text x="385" y="161" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Bus Termini / Depots (GeoJSON):</tspan> 28 mapped &amp; inferred terminal points</text>
+  <text x="385" y="179" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Metro &amp; Suburban Rail (GeoJSON):</tspan> Station points &amp; line segments</text>
   <!-- Arrow 1 -> 2 -->
   <line x1="195" y1="205" x2="195" y2="230" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
   <!-- Step 2 Left Box -->
   <rect x="50" y="230" width="290" height="105" rx="8" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
   <rect x="65" y="245" width="36" height="24" rx="4" fill="url(#leftBoxGrad)" />
   <text x="83" y="262" font-size="12" font-weight="800" fill="#ffffff" text-anchor="middle">2</text>
-  <text x="112" y="261" font-size="13" font-weight="700" fill="#ffffff" text-anchor="start">Preprocessing & Sanitization</text>
-  <text x="65" y="295" font-size="11" font-weight="500" fill="#38bdf8" text-anchor="start">Data purification & spatial clipping</text>
+  <text x="112" y="261" font-size="13" font-weight="700" fill="#ffffff" text-anchor="start">Preprocessing &amp; Sanitization</text>
+  <text x="65" y="295" font-size="11" font-weight="500" fill="#38bdf8" text-anchor="start">Data purification &amp; spatial clipping</text>
   <rect x="65" y="305" width="260" height="1" fill="#334155" />
   <!-- Step 2 Right Box -->
   <rect x="365" y="230" width="505" height="105" rx="8" fill="url(#cardGrad)" stroke="#1e293b" stroke-width="1.5" />
   <text x="385" y="255" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Spatial Boundary Clip:</tspan> Filter and keep only stops inside the CMA boundary</text>
-  <text x="385" y="273" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• String Sanitization:</tspan> Strip characters & operational terms (depot, terminus, stand)</text>
+  <text x="385" y="273" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• String Sanitization:</tspan> Strip characters &amp; operational terms (depot, terminus, stand)</text>
   <text x="385" y="291" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Regex Route List Parsing:</tspan> Split delimited lists (e.g. ';', ',') into clean JSON arrays</text>
   <!-- Arrow 2 -> 3 -->
   <line x1="195" y1="335" x2="195" y2="360" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
@@ -59,7 +59,7 @@
   <rect x="65" y="435" width="260" height="1" fill="#334155" />
   <!-- Step 3 Right Box -->
   <rect x="365" y="360" width="505" height="105" rx="8" fill="url(#cardGrad)" stroke="#1e293b" stroke-width="1.5" />
-  <text x="385" y="385" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Nodes (Vertices):</tspan> Bus stops, terminals, depots, metro & suburban rail stations</text>
+  <text x="385" y="385" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Nodes (Vertices):</tspan> Bus stops, terminals, depots, metro &amp; suburban rail stations</text>
   <text x="385" y="403" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Transit Edges (Hops):</tspan> Connect stops served by identical bus routes or rail lines</text>
   <text x="385" y="421" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Transfer Footpaths (Walks):</tspan> R-tree spatial index (STRtree) queries all nodes to</text>
   <text x="385" y="439" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#94a3b8" text-anchor="start">  automatically construct transfer edges for any stops within a 200m radius</text>
@@ -85,12 +85,12 @@
   <rect x="50" y="620" width="290" height="105" rx="8" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
   <rect x="65" y="635" width="36" height="24" rx="4" fill="url(#leftBoxGrad)" />
   <text x="83" y="652" font-size="12" font-weight="800" fill="#ffffff" text-anchor="middle">5</text>
-  <text x="112" y="651" font-size="13" font-weight="700" fill="#ffffff" text-anchor="start">Proximity & Selection</text>
+  <text x="112" y="651" font-size="13" font-weight="700" fill="#ffffff" text-anchor="start">Proximity &amp; Selection</text>
   <text x="65" y="685" font-size="11" font-weight="500" fill="#38bdf8" text-anchor="start">Geographic distance calculations</text>
   <rect x="65" y="695" width="260" height="1" fill="#334155" />
   <!-- Step 5 Right Box -->
   <rect x="365" y="620" width="505" height="105" rx="8" fill="url(#cardGrad)" stroke="#1e293b" stroke-width="1.5" />
-  <text x="385" y="645" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Project Coordinates:</tspan> Reproject stop & terminal coordinates to UTM Zone 44N (EPSG:32644)</text>
+  <text x="385" y="645" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Project Coordinates:</tspan> Reproject stop &amp; terminal coordinates to UTM Zone 44N (EPSG:32644)</text>
   <text x="385" y="663" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Euclidean Distance Sort:</tspan> Measure straight-line distance (meters) to all reachable hubs</text>
   <text x="385" y="681" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Closest Hub Selection:</tspan> Sort by physical distance and select the closest reachable hub</text>
   <text x="385" y="699" font-size="11" font-family="system-ui, -apple-system, sans-serif" fill="#e2e8f0" text-anchor="start"><tspan fill="#38bdf8" font-weight="600">• Final Score Mapping:</tspan> Assign stop's connectivity score based on transfers to that closest hub</text>
@@ -100,8 +100,8 @@
   <rect x="50" y="750" width="290" height="105" rx="8" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" />
   <rect x="65" y="765" width="36" height="24" rx="4" fill="url(#leftBoxGrad)" />
   <text x="83" y="782" font-size="12" font-weight="800" fill="#ffffff" text-anchor="middle">6</text>
-  <text x="112" y="781" font-size="13" font-weight="700" fill="#ffffff" text-anchor="start">Enriched Outputs & Visuals</text>
-  <text x="65" y="815" font-size="11" font-weight="500" fill="#38bdf8" text-anchor="start">Map layer compiling & front-end UI</text>
+  <text x="112" y="781" font-size="13" font-weight="700" fill="#ffffff" text-anchor="start">Enriched Outputs &amp; Visuals</text>
+  <text x="65" y="815" font-size="11" font-weight="500" fill="#38bdf8" text-anchor="start">Map layer compiling &amp; front-end UI</text>
   <rect x="65" y="825" width="260" height="1" fill="#334155" />
   <!-- Step 6 Right Box -->
   <rect x="365" y="750" width="505" height="105" rx="8" fill="url(#cardGrad)" stroke="#1e293b" stroke-width="1.5" />
