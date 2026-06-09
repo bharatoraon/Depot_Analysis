@@ -588,6 +588,156 @@
       background-color: #ffffff;
       color: #0f172a;
     }
+
+    /* Methodology Button & Modal Styles */
+    .methodology-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 10px;
+      padding: 7px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #2563eb;
+      background-color: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .methodology-btn:hover {
+      background-color: #e0f2fe;
+      border-color: #7dd3fc;
+      color: #0369a1;
+      transform: translateY(-0.5px);
+    }
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      max-width: 800px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      border: 1px solid #e2e8f0;
+      animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalFadeIn {
+      from { transform: scale(0.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 15px;
+      color: #0f172a;
+      font-weight: 700;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #64748b;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+    .close-btn:hover {
+      color: #0f172a;
+      background-color: #f1f5f9;
+    }
+    .modal-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .modal-tabs {
+      display: flex;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 8px 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: -2px;
+    }
+    .tab-btn:hover {
+      color: #0f172a;
+    }
+    .tab-btn.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .tab-description {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .modal-body ul {
+      margin: 10px 0 15px 0;
+      padding-left: 20px;
+    }
+    .modal-body li {
+      font-size: 12px;
+      color: #334155;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    .modal-body h3 {
+      font-size: 13.5px;
+      color: #0f172a;
+      margin-top: 15px;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -596,6 +746,10 @@
       <div>
         <h1>Transit Connectivity</h1>
         <p class="subtitle">Multi-tier accessibility analysis dashboard for the Chennai Metropolitan Area.</p>
+        <button id="btnMethodology" class="methodology-btn" onclick="openMethodologyModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 13px; height: 13px; margin-right: 6px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+          GIS Methodology & Logic
+        </button>
       </div>
 
       <!-- Mode Switcher -->
@@ -697,6 +851,39 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
+    // Modal controls for GIS Methodology
+    function openMethodologyModal() {
+      document.getElementById("methodologyModal").classList.add("active");
+    }
+    
+    function closeMethodologyModal(e) {
+      if (e && e.target !== document.getElementById("methodologyModal")) return;
+      document.getElementById("methodologyModal").classList.remove("active");
+    }
+    
+    function switchModalTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(content => content.classList.remove("active"));
+      
+      if (tabId === 'flowchart') {
+        document.getElementById("tabFlowchart").classList.add("active");
+        document.getElementById("modalContentFlowchart").classList.add("active");
+      } else if (tabId === 'decision_tree') {
+        document.getElementById("tabDecisionTree").classList.add("active");
+        document.getElementById("modalContentDecisionTree").classList.add("active");
+      } else if (tabId === 'text_summary') {
+        document.getElementById("tabTextSummary").classList.add("active");
+        document.getElementById("modalContentTextSummary").classList.add("active");
+      }
+    }
+
+    // Keyboard ESC key close modal
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") {
+        closeMethodologyModal();
+      }
+    });
+
     const files = {
       summary: "connectivity_summary.json",
       cma: "CMA.geojson",
@@ -1302,5 +1489,56 @@
         console.error(error);
       });
   </script>
+
+  <!-- Methodology Modal Overlay -->
+  <div id="methodologyModal" class="modal-overlay" onclick="closeMethodologyModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2>GIS Methodology & Logic</h2>
+        <button class="close-btn" onclick="closeMethodologyModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-tabs">
+          <button id="tabFlowchart" class="tab-btn active" onclick="switchModalTab('flowchart')">1. System Pipeline Flowchart</button>
+          <button id="tabDecisionTree" class="tab-btn" onclick="switchModalTab('decision_tree')">2. Stop Classification Decision Tree</button>
+          <button id="tabTextSummary" class="tab-btn" onclick="switchModalTab('text_summary')">3. Routing & Logic Details</button>
+        </div>
+        
+        <div id="modalContentFlowchart" class="tab-content active">
+          <p class="tab-description">This flowchart shows the system data processing pipeline, including raw inputs, name standardization, graph network creation (walking transfers &lt; 200m), RAPTOR calculations, and final dashboard visual exports.</p>
+          <div style="background-color: #f8fafc; border-radius: 8px; padding: 8px; text-align: center;">
+            <img src="../methodology_flowchart.png" alt="Methodology Flowchart" style="max-width: 100%; max-height: 55vh; height: auto; border-radius: 4px; border: 1px solid #e2e8f0; display: inline-block;">
+          </div>
+        </div>
+        
+        <div id="modalContentDecisionTree" class="tab-content">
+          <p class="tab-description">This decision tree outlines the logical rules used to classify each stop's connectivity category. It runs RAPTOR, projects coordinates (EPSG:32644), selects the geographically closest hub, and classifies based on transfer counts.</p>
+          <div style="background-color: #f8fafc; border-radius: 8px; padding: 8px; text-align: center;">
+            <img src="../connectivity_decision_tree.png" alt="Stop Connectivity Classification Decision Tree" style="max-width: 100%; max-height: 55vh; height: auto; border-radius: 4px; border: 1px solid #e2e8f0; display: inline-block;">
+          </div>
+        </div>
+        
+        <div id="modalContentTextSummary" class="tab-content">
+          <h3>Routing & Classification Rules</h3>
+          <ul>
+            <li><strong>Nodes:</strong> 4,145 MTC Bus Stops, inferred and mapped Terminals, Metro, and Suburban stations within CMA.</li>
+            <li><strong>Walking transfers:</strong> Automatically generated walking links between any two stops within 200 meters.</li>
+            <li><strong>RAPTOR Routing:</strong> Explores the transit graph up to 3 rounds (2 transfers/3 buses).</li>
+            <li><strong>Representative selection:</strong> Coordinates projected to meters (EPSG:32644). The geographically closest reachable terminal/hub is selected.</li>
+            <li><strong>Category Assignment:</strong> Connectivity category (Direct, 2 routes, 3 routes, etc.) is determined by the minimum transfers required to reach <em>that closest hub</em>.</li>
+            <li><strong>Underserved Focus:</strong> Isolates stops requiring 2+ transfers (3+ routes/buses) or disconnected stops to identify transit deserts.</li>
+          </ul>
+          <div style="margin-top: 20px; text-align: center; padding: 12px; background-color: #f0f9ff; border-radius: 8px; border: 1px solid #e0f2fe;">
+            <p style="margin: 0; font-size: 12px; color: #0369a1; font-weight: 600;">
+              <a href="../Chennai_Connectivity_Methodology_Report.html" target="_blank" style="color: #2563eb; text-decoration: underline; display: inline-flex; align-items: center;">
+                Read Full PDF/Print-ready Report (HTML) 
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 12px; height: 12px; margin-left: 4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

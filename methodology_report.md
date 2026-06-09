@@ -5,6 +5,107 @@ This document details the methodology, calculation logic, and technology stack u
 
 ---
 
+## Methodology Flowchart & Decision Tree
+
+Below are the visual reference charts detailing the implementation methodology:
+1. **System Methodology Flowchart**: The step-by-step data processing pipeline, from raw GIS inputs to graph construction, RAPTOR routing, and visualization.
+2. **Stop Connectivity Classification Decision Tree**: The logical routing decision rules that determine the connectivity category of each stop based on geographic proximity to reachable transit hubs.
+
+---
+
+### 1. System ETL & Data Processing Flowchart
+
+![System Methodology Flowchart](methodology_flowchart.png)
+
+```mermaid
+graph TD
+    subgraph Input [1. Input Data Layers]
+        BusStops["MTC Bus Stops (GeoJSON)"]
+        BusRoutes["MTC Bus Routes (GeoJSON)"]
+        Termini["Bus Termini (GeoJSON)"]
+        Metro["Metro Stations & Corridors (GeoJSON)"]
+        Suburban["Suburban Stations & Corridors (GeoJSON)"]
+        CMABoundary["CMA Boundary Polygon"]
+    end
+
+    subgraph Preprocess [2. Spatial Ingestion & Preprocessing]
+        BoundaryClip["Spatial Clip: Prune stops/routes outside CMA boundary"]
+        TextSanitize["Name Sanitization: Lowercase & strip 'depot/terminus/stand'"]
+        RouteRegex["Regex Route List Parsing: Parse semicolon/comma-separated strings"]
+    end
+
+    subgraph Graph [3. Network Graph Construction]
+        Nodes["Nodes: Stops, Terminals, Metro/Suburban Stations"]
+        RouteEdges["Route Edges: Connect stops sharing same route name"]
+        WalkEdges["Walk Transfer Footpaths: Connect stops within 200m radius using STRtree"]
+    end
+
+    subgraph Raptor [4. RAPTOR Routing Engine]
+        Round0["Round 0: Initialize accessible terminals (0 transfers)"]
+        Round1["Round 1: Traverse direct routes (Direct / 0 transfers)"]
+        Round2["Round 2: Traverse 1-transfer routes (2 buses/routes / 1 transfer)"]
+        Round3["Round 3: Traverse 2-transfer routes (3 buses/routes / 2 transfers)"]
+    end
+
+    subgraph Proximity [5. Proximity & Representative Selection]
+        ProjMeters["Coordinate Projection: Project coordinates from WGS84 to EPSG:32644 (meters)"]
+        CalcDist["Euclidean Distance: Calculate distance to all reachable terminals"]
+        ClosestHub["Select Closest: Sort by distance & select closest reachable terminal"]
+        SetMetric["Set Score: Set connectivity metric based on that closest reachable terminal"]
+    end
+
+    subgraph Output [6. Outputs & Dashboard Visuals]
+        StopsGeoJSON["bus_stops_connectivity.geojson"]
+        SummaryStats["connectivity_summary.json"]
+        LeafletMap["Interactive Leaflet Dashboard (index.html)"]
+    end
+
+    Input --> Preprocess
+    Preprocess --> Graph
+    Graph --> Raptor
+    Raptor --> Proximity
+    Proximity --> Output
+```
+
+---
+
+### 2. Stop Connectivity Classification Decision Tree
+
+![Stop Connectivity Classification Decision Tree](connectivity_decision_tree.png)
+
+```mermaid
+flowchart TD
+    Start([Start: Transit Stop]) --> InCMA{Inside CMA Boundary?}
+    
+    InCMA -- No --> Excluded[Excluded from Dashboard]
+    InCMA -- Yes --> RunRaptor[Run RAPTOR Routing: Find reachable terminals/hubs within 2 transfers]
+    
+    RunRaptor --> Reachable{Reachable Hubs Found?}
+    
+    Reachable -- No --> TransitDesert[No Route Connection / Transit Desert]
+    Reachable -- Yes --> ProjectCoords[Project coordinates to EPSG:32644 meters]
+    
+    ProjectCoords --> CalcDist[Calculate Euclidean distance to all reachable hubs]
+    CalcDist --> ClosestHub[Select Geographically Closest Reachable Hub]
+    ClosestHub --> Hops{Hops/Transfers to closest hub?}
+    
+    Hops -- "0 Transfers (Round 0/1)" --> Direct[Direct Connectivity]
+    Hops -- "1 Transfer (Round 2)" --> TwoBuses[2 Buses / Routes]
+    Hops -- "2 Transfers (Round 3)" --> ThreeBuses[3 Buses / Routes]
+    Hops -- "3+ Transfers" --> FourBuses[4+ Buses / Routes]
+    
+    Direct --> ActiveFocus{Underserved Focus Active?}
+    TwoBuses --> ActiveFocus
+    ThreeBuses --> ActiveFocus
+    FourBuses --> ActiveFocus
+    TransitDesert --> ActiveFocus
+    
+    ActiveFocus -- Yes --> FilterActive[Show only '3 Buses/Routes' or worse and disconnected]
+    ActiveFocus -- No --> FilterInactive[Show all transit stops]
+```
+
+---
+
 ## 1. System Architecture & Technologies
 
 The system is designed as a two-tier architecture consisting of a heavy offline geospatial ETL (Extract, Transform, Load) pipeline and a lightweight frontend visualization layer.
