@@ -10,6 +10,7 @@ This document details the methodology, calculation logic, and technology stack u
 Below are the visual reference charts detailing the implementation methodology:
 1. **System Methodology Flowchart**: The step-by-step data processing pipeline, from raw GIS inputs to graph construction, RAPTOR routing, and visualization.
 2. **Stop Connectivity Classification Decision Tree**: The logical routing decision rules that determine the connectivity category of each stop based on geographic proximity to reachable transit hubs.
+3. **CMA Transit Connectivity & 3D PTAL Heatmap**: A spatial density representation showing both the 2D density of transit accessibility across the Chennai Metropolitan Area and a 3D extruded rendering of PTAL indices where higher peaks represent high accessibility concentrations.
 
 ---
 
@@ -103,6 +104,14 @@ flowchart TD
     ActiveFocus -- Yes --> FilterActive[Show only '3 Buses/Routes' or worse and disconnected]
     ActiveFocus -- No --> FilterInactive[Show all transit stops]
 ```
+
+---
+
+### 3. Chennai 2D Transit Heatmap & 3D Extruded PTAL Visualization
+
+Below is the scientific GIS visualization mapping the transit connectivity density of the Chennai Metropolitan Area. The left panel shows the 2D accessibility heatmap (representing access density zones), and the right panel shows the 3D extruded terrain height map representing the Public Transport Accessibility Level (PTAL), where the highest red/orange peaks correspond to transit hubs with high service densities (e.g., Chennai Central, T. Nagar).
+
+![Chennai 2D Transit Heatmap & 3D Extruded PTAL Visualization](transit_density_3d_heatmap.png)
 
 ---
 
