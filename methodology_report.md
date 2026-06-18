@@ -195,3 +195,71 @@ In the source `mtc_bus_stops_all.geojson` data, the `route name` field was often
 ### 5.3 QA Interventions
 Despite algorithmic cleaning, manual QA interventions were applied to guarantee data integrity:
 * Hardcoded validations override the algorithm for specific critical infrastructure nodes whose upstream route strings were too malformed to parse automatically. For instance, "Chennai Koyambedu Mofussil Bus Stand" and "Kundrathur Bus Depot" were explicitly mapped as "Direct" connectivity points based on manual map validation.
+
+---
+
+## 6. Public Transport Accessibility Level (PTAL)
+
+PTAL measures walking access and transit service density from a stop's perspective using a standardized door-to-door transit accessibility index.
+
+### 6.1 Mathematical Formulation
+
+1. **Walking Access Time ($WalkTime$):**
+   Calculates walk times from a stop to all neighboring nodes within 640 meters (buses/terminals) and 960 meters (metro/suburban rail), assuming a walk speed of 80 meters/minute (4.8 km/h).
+   $$WalkTime_{i,j} = \frac{Distance_{i,j}}{80 \text{ meters/minute}}$$
+
+2. **Scheduled Wait Time ($SWT$):**
+   $$SWT_{j,r} = (0.5 \times Headway_{j,r}) + ReliabilityMargin_{mode}$$
+   * **Empirical Peak Headways:** Exact route headways are extracted from CUMTA MTC and CMRL GTFS schedules during the morning peak hour (**08:00 - 10:00**). CMRL Metro parent stations are spatially joined (within 250m) to map stations to GTFS parent stations.
+   * **Defaults & Fallbacks:** 
+     * MTC Bus: exact headway from GTFS peak schedule; fallback to 30.0 mins.
+     * CMRL Metro: exact median peak headway; fallback to 10.0 mins.
+     * Suburban Rail: standard default of 20.0 mins during peak hours.
+     * Heuristic Fallback (if GTFS is missing entirely): route-count proxy ($>10$ routes: 5m, $5\text{--}10$ routes: 10m, $2\text{--}4$ routes: 15m, 1 route: 30m).
+   * **Reliability Margins:** Bus = 2.0 min, Metro = 0.75 min, Suburban = 1.50 min.
+
+3. **Accessibility Index ($AI$):**
+   The dominant route (minimum access time $AT_{dom} = WalkTime + SWT$) is weighted fully (100%), while all other accessible routes are weighted at 50%:
+   $$AI_i = \left(\frac{30}{AT_{dom}}\right) + 0.5 \times \sum_{non-dom} \left(\frac{30}{AT_{non-dom}}\right)$$
+
+4. **PTAL Grade Mapping:**
+   The calculated Accessibility Index ($AI$) is mapped to PTAL grades based on standard London thresholds:
+   * **Grade 0 (Very Poor):** $AI = 0.0$
+   * **Grade 1a:** $0.0 < AI \le 2.5$
+   * **Grade 1b:** $2.5 < AI \le 5.0$
+   * **Grade 2:** $5.0 < AI \le 10.0$
+   * **Grade 3:** $10.0 < AI \le 15.0$
+   * **Grade 4:** $15.0 < AI \le 20.0$
+   * **Grade 5:** $20.0 < AI \le 25.0$
+   * **Grade 6a:** $25.0 < AI \le 40.0$
+   * **Grade 6b (Excellent):** $AI > 40.0$
+
+---
+
+## 7. Network Health Index (NHI)
+
+NHI evaluates the quality, reliability, and redundancy of transit services from a stop's perspective on a scale of 0 to 100.
+$$NHI_i = 0.3 \times S_{directness} + 0.3 \times S_{transfer} + 0.2 \times S_{multimodal} + 0.2 \times S_{resilience}$$
+
+### 7.1 Directness Score ($S_{directness}$, 30%)
+Compares actual transit route distance to Euclidean straight-line distance to the closest hub. Circuity is defined as $RouteDistance / EuclideanDistance$:
+* **Sequence-Based Distance:** For bus stops on the same route, the exact route distance is calculated by accumulating stop-to-stop segment distances along the GTFS stop sequence, eliminating shape projection circuity errors. A shape projection method is kept as a fallback for non-GTFS routes.
+* **Calculation:**
+  $$S_{directness} = \max\left(0, 100 \times \left(2.0 - Circuity_i\right)\right)$$
+* For stops with $0$ transfers, directness is set to 100. For stops with 2 transfers (3 routes), directness defaults to 50, and 3 transfers defaults to 0.
+
+### 7.2 Transfer Friction Score ($S_{transfer}$, 30%)
+Assesses ease of connection to key hubs based on transit hops to the geographically closest reachable terminal:
+* **Direct connection (0 transfers):** 100 points
+* **1 transfer (2 routes):** 70 points
+* **2 transfers (3 routes):** 30 points
+* **3+ transfers / Disconnected:** 0 points
+
+### 7.3 Multi-Modal Integration ($S_{multimodal}$, 20%)
+Measures proximity to rapid transit modes. Awards **100 points** if the stop is within **200 meters** walking distance of a Metro or Suburban Rail station (acting as a multimodal transfer point), otherwise **0 points**.
+
+### 7.4 Network Resilience ($S_{resilience}$, 20%)
+Measures protection against single-line failures through route redundancy:
+$$S_{resilience} = 100 \times \left(1 - e^{-0.3 \times \left(RoutesCount_i - 1\right)}\right)$$
+For stops served by only 1 route, the resilience score is 0.
+
