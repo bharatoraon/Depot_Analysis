@@ -764,6 +764,17 @@
         </button>
       </div>
 
+      <!-- Metric Selector -->
+      <div class="control" style="margin-bottom: 0;">
+        <label for="metricSelect" style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: .08em; margin-bottom: 6px;">Select Metric Layer</label>
+        <select id="metricSelect" onchange="switchMetric(this.value)">
+          <option value="connectivity">Transfer Connectivity (RAPTOR Hops)</option>
+          <option value="ptal">PTAL Accessibility Index</option>
+          <option value="nhi">Network Health Index (NHI)</option>
+        </select>
+      </div>
+
+
       <!-- KPIs -->
       <div class="kpis">
         <div class="kpi">
@@ -874,6 +885,12 @@
       } else if (tabId === 'text_summary') {
         document.getElementById("tabTextSummary").classList.add("active");
         document.getElementById("modalContentTextSummary").classList.add("active");
+      } else if (tabId === 'ptal') {
+        document.getElementById("tabPTAL").classList.add("active");
+        document.getElementById("modalContentPTAL").classList.add("active");
+      } else if (tabId === 'nhi') {
+        document.getElementById("tabNHI").classList.add("active");
+        document.getElementById("modalContentNHI").classList.add("active");
       }
     }
 
@@ -908,6 +925,26 @@
       "No route connection": "#64748b"
     };
 
+    const ptalColours = {
+      "0": "#64748b",
+      "1a": "#991b1b",
+      "1b": "#dc2626",
+      "2": "#ea580c",
+      "3": "#f59e0b",
+      "4": "#eab308",
+      "5": "#84cc16",
+      "6a": "#16a34a",
+      "6b": "#15803d"
+    };
+
+    const nhiColours = {
+      "Excellent (90-100)": "#16a34a",
+      "Good (70-89)": "#84cc16",
+      "Moderate (50-69)": "#eab308",
+      "Weak (30-49)": "#f59e0b",
+      "Critical (0-29)": "#dc2626"
+    };
+
     const basemaps = {
       osm: {
         url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -940,6 +977,8 @@
     let selectedRoute = "";
     let analysisMode = "terminal_connectivity"; // 'terminal_connectivity' (Bus-Only) or 'multimodal_connectivity' (Multimodal)
 
+    let activeMetric = "connectivity"; // 'connectivity', 'ptal', 'nhi'
+
     function loadJSON(path) {
       return fetch(path + "?t=" + Date.now()).then(response => {
         if (!response.ok) throw new Error(`Failed to load ${path}`);
@@ -952,7 +991,18 @@
     }
 
     function stopColour(props) {
-      return colours[props[analysisMode]] || "#64748b";
+      if (activeMetric === "ptal") {
+        return ptalColours[props.ptal_grade] || "#64748b";
+      } else if (activeMetric === "nhi") {
+        const score = props.nhi_score;
+        if (score >= 90) return "#16a34a";
+        if (score >= 70) return "#84cc16";
+        if (score >= 50) return "#eab308";
+        if (score >= 30) return "#f59e0b";
+        return "#dc2626";
+      } else {
+        return colours[props[analysisMode]] || "#64748b";
+      }
     }
 
     let underservedActive = false;
@@ -1157,62 +1207,83 @@
       const values = order.map(key => counts[key] || 0);
       const max = Math.max(1, ...values);
       el.innerHTML = order
-        .map(key => `
-          <div class="bar-row">
-            <div class="bar-label" title="${key}">${key}</div>
-            <div class="bar-track"><div class="bar-fill" style="width:${(counts[key] || 0) / max * 100}%; background:${colours[key] || "#2563eb"}"></div></div>
-            <div style="font-weight:700; text-align:right;">${fmt(counts[key] || 0)}</div>
-          </div>`)
+        .map(key => {
+          const bgCol = colours[key] || ptalColours[key] || nhiColours[key] || "#2563eb";
+          return `
+            <div class="bar-row">
+              <div class="bar-label" title="${key}">${key}</div>
+              <div class="bar-track"><div class="bar-fill" style="width:${(counts[key] || 0) / max * 100}%; background:${bgCol}"></div></div>
+              <div style="font-weight:700; text-align:right;">${fmt(counts[key] || 0)}</div>
+            </div>`;
+        })
         .join("");
     }
 
     function updateLegend() {
       const el = document.getElementById("legend");
-      if (analysisMode === "terminal_connectivity") {
-        const keys = ["Direct", "2 buses", "3 buses", "4+ buses", "No route connection"];
+      if (activeMetric === "connectivity") {
+        if (analysisMode === "terminal_connectivity") {
+          const keys = ["Direct", "2 buses", "3 buses", "4+ buses", "No route connection"];
+          el.innerHTML = `
+            <div class="legend-title">Bus Stop to Terminal</div>
+            ${keys.map(key => `<div class="legend-row"><span class="swatch" style="background:${colours[key]}"></span>${key}</div>`).join("")}
+            <div class="legend-row">
+              <div style="width:14px;height:14px;background:#d97706;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 7px; height: 7px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h7.5m-7.5 0h-1.5A2.25 2.25 0 013 16.5v-1.5m15 3.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.5a2.25 2.25 0 00 2.25-2.25v-1.5M16.5 15h-1.5m1.5 0V4.875c0-.621-.504-1.125-1.125-1.125h-9.75c-.621 0-1.125 0-1.125.011M16.5 15h-9m0 0V4.887m0 0c0-.621.504-1.125 1.125-1.125h9.75M16.5 9v1.5h-9V9" />
+                </svg>
+              </div>
+              Bus terminal/facility
+            </div>
+            <div class="legend-row">
+              <div style="width:14px;height:14px;background:#ef4444;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3.5" stroke="currentColor" style="width: 7px; height: 7px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.03L3.07 19.5a1.125 1.125 0 00.97 1.685h15.92a1.125 1.125 0 00.97-1.685L12 2.72zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              Unconnected stop
+            </div>`;
+        } else {
+          const keys = ["Direct", "2 routes", "3 routes", "4+ routes", "No route connection"];
+          el.innerHTML = `
+            <div class="legend-title">Multimodal Connectivity</div>
+            ${keys.map(key => `<div class="legend-row"><span class="swatch" style="background:${colours[key]}"></span>${key}</div>`).join("")}
+            <div class="legend-row">
+              <div style="width:14px;height:14px;background:#2563eb;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 7px; height: 7px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 4h14v10a2 2 0 01-2 2H7a2 2 0 01-2-2V4zm0 12l-2 4m18-4l2 4" />
+                </svg>
+              </div>
+              Metro Station
+            </div>
+            <div class="legend-row">
+              <div style="width:14px;height:14px;background:#7c2d12;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 7px; height: 7px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20m0-20H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2h-6zm-4 6h8m-8 4h8m-4 4h.008v.008H12V16z" />
+                </svg>
+              </div>
+              Suburban Rail Station
+            </div>
+            <div class="legend-row"><span class="line-swatch" style="background:#2563eb"></span>Metro Blue Line</div>
+            <div class="legend-row"><span class="line-swatch" style="background:#16a34a"></span>Metro Green Line</div>
+            <div class="legend-row"><span class="line-swatch" style="background:#7c2d12; border-style: dashed; border-width: 1px 0 0 0; height: 1px;"></span>Suburban Rail Corridor</div>`;
+        }
+      } else if (activeMetric === "ptal") {
+        const keys = ["6b", "6a", "5", "4", "3", "2", "1b", "1a", "0"];
         el.innerHTML = `
-          <div class="legend-title">Bus Stop to Terminal</div>
-          ${keys.map(key => `<div class="legend-row"><span class="swatch" style="background:${colours[key]}"></span>${key}</div>`).join("")}
-          <div class="legend-row">
-            <div style="width:14px;height:14px;background:#d97706;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 7px; height: 7px;">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h7.5m-7.5 0h-1.5A2.25 2.25 0 013 16.5v-1.5m15 3.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.5a2.25 2.25 0 00 2.25-2.25v-1.5M16.5 15h-1.5m1.5 0V4.875c0-.621-.504-1.125-1.125-1.125h-9.75c-.621 0-1.125 0-1.125.011M16.5 15h-9m0 0V4.887m0 0c0-.621.504-1.125 1.125-1.125h9.75M16.5 9v1.5h-9V9" />
-              </svg>
-            </div>
-            Bus terminal/facility
-          </div>
-          <div class="legend-row">
-            <div style="width:14px;height:14px;background:#ef4444;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3.5" stroke="currentColor" style="width: 7px; height: 7px;">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.03L3.07 19.5a1.125 1.125 0 00.97 1.685h15.92a1.125 1.125 0 00.97-1.685L12 2.72zM12 15.75h.007v.008H12v-.008z" />
-              </svg>
-            </div>
-            Unconnected stop
-          </div>`;
-      } else {
-        const keys = ["Direct", "2 routes", "3 routes", "4+ routes", "No route connection"];
+          <div class="legend-title">PTAL Accessibility Grade</div>
+          ${keys.map(key => {
+            const desc = key === "6b" ? "Excellent" : (key === "0" ? "Poor / None" : "");
+            const text = desc ? `${key} (${desc})` : key;
+            return `<div class="legend-row"><span class="swatch" style="background:${ptalColours[key]}"></span>${text}</div>`;
+          }).join("")}
+        `;
+      } else if (activeMetric === "nhi") {
+        const keys = ["Excellent (90-100)", "Good (70-89)", "Moderate (50-69)", "Weak (30-49)", "Critical (0-29)"];
         el.innerHTML = `
-          <div class="legend-title">Multimodal Connectivity</div>
-          ${keys.map(key => `<div class="legend-row"><span class="swatch" style="background:${colours[key]}"></span>${key}</div>`).join("")}
-          <div class="legend-row">
-            <div style="width:14px;height:14px;background:#2563eb;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 7px; height: 7px;">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 4h14v10a2 2 0 01-2 2H7a2 2 0 01-2-2V4zm0 12l-2 4m18-4l2 4" />
-              </svg>
-            </div>
-            Metro Station
-          </div>
-          <div class="legend-row">
-            <div style="width:14px;height:14px;background:#7c2d12;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;flex:none;margin-right:8px;">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 7px; height: 7px;">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20m0-20H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2h-6zm-4 6h8m-8 4h8m-4 4h.008v.008H12V16z" />
-              </svg>
-            </div>
-            Suburban Rail Station
-          </div>
-          <div class="legend-row"><span class="line-swatch" style="background:#2563eb"></span>Metro Blue Line</div>
-          <div class="legend-row"><span class="line-swatch" style="background:#16a34a"></span>Metro Green Line</div>
-          <div class="legend-row"><span class="line-swatch" style="background:#7c2d12; border-style: dashed; border-width: 1px 0 0 0; height: 1px;"></span>Suburban Rail Corridor</div>`;
+          <div class="legend-title">Network Health Index (NHI)</div>
+          ${keys.map(key => `<div class="legend-row"><span class="swatch" style="background:${nhiColours[key]}"></span>${key}</div>`).join("")}
+        `;
       }
     }
 
@@ -1344,17 +1415,33 @@
             [listLabel, listVal],
             [closestLabel, closestStr],
             [accLabel, accStr],
+            ["PTAL Grade", p.ptal_grade ? `${p.ptal_grade} (Index: ${p.ptal_index})` : "-"],
+            ["Network Health", p.nhi_score ? `${p.nhi_score}/100` : "-"],
             ["QA corrections", p.connectivity_qa_note || "-"]
           ]));
 
           // Setup hover tooltip
           let tooltipHtml = `<div style="font-family: inherit; font-size: 11px; padding: 2px;">
             <strong style="color: #0f172a;">${p["Stop Name"] || "Bus stop"}</strong>`;
-          if (closestName) {
-            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">${closestLabel}:</span>
-                           <br/><span style="color: #0284c7; font-weight: 700;">${closestName} (${closestDist} km)</span>`;
+          
+          if (activeMetric === "ptal") {
+            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">PTAL Grade:</span>
+                           <br/><span style="color: ${ptalColours[p.ptal_grade] || '#0284c7'}; font-weight: 700;">Grade ${p.ptal_grade} (Index: ${p.ptal_index})</span>`;
+          } else if (activeMetric === "nhi") {
+            let healthCol = "#16a34a";
+            if (p.nhi_score < 30) healthCol = "#dc2626";
+            else if (p.nhi_score < 50) healthCol = "#f59e0b";
+            else if (p.nhi_score < 70) healthCol = "#eab308";
+            else if (p.nhi_score < 90) healthCol = "#84cc16";
+            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">Network Health:</span>
+                           <br/><span style="color: ${healthCol}; font-weight: 700;">${p.nhi_score}/100</span>`;
           } else {
-            tooltipHtml += `<br/><span style="color: #ef4444; font-weight: 550;">No terminal access</span>`;
+            if (closestName) {
+              tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">${closestLabel}:</span>
+                             <br/><span style="color: #0284c7; font-weight: 700;">${closestName} (${closestDist} km)</span>`;
+            } else {
+              tooltipHtml += `<br/><span style="color: #ef4444; font-weight: 550;">No terminal access</span>`;
+            }
           }
           tooltipHtml += `</div>`;
 
@@ -1431,30 +1518,86 @@
       document.getElementById("btnBusOnly").classList.toggle("active", mode === "terminal_connectivity");
       document.getElementById("btnMultimodal").classList.toggle("active", mode === "multimodal_connectivity");
 
-      // Update KPI Labels and Values
-      const isMultimodal = mode === "multimodal_connectivity";
-      document.getElementById("kpiDirectLabel").textContent = isMultimodal ? "Direct multimodal access" : "Direct to terminal";
-      document.getElementById("kpiFacilitiesLabel").textContent = isMultimodal ? "Total multimodal hubs" : "Bus facilities";
-      document.getElementById("breakdownTitle").textContent = isMultimodal ? "Multimodal Connectivity" : "Terminal Connectivity";
-
-      if (isMultimodal) {
-        document.getElementById("kpiTerminalDirect").textContent = fmt(data.summary.multimodal_connectivity_counts.Direct);
-        const totalHubs = data.summary.counts.bus_facilities_inside_cma + data.summary.counts.metro_stations + data.summary.counts.suburban_stations;
-        document.getElementById("kpiFacilities").textContent = fmt(totalHubs);
-        
-        // Render Bars
-        drawBars("connectivityBars", data.summary.multimodal_connectivity_counts, ["Direct", "2 routes", "3 routes", "4+ routes", "No route connection"]);
-      } else {
-        document.getElementById("kpiTerminalDirect").textContent = fmt(data.summary.bus_only_connectivity_counts.Direct);
-        document.getElementById("kpiFacilities").textContent = fmt(data.summary.counts.bus_facilities_inside_cma);
-        
-        // Render Bars
-        drawBars("connectivityBars", data.summary.bus_only_connectivity_counts, ["Direct", "2 buses", "3 buses", "4+ buses", "No route connection"]);
-      }
+      // Update KPI Cards and Sidebar Breakdown based on active metric
+      updateMetricPanel();
 
       redrawOperationalLayers();
       if (underservedActive) {
         renderUnderservedList();
+      }
+    }
+
+    function switchMetric(metric) {
+      activeMetric = metric;
+      
+      // Update KPI Cards and Sidebar Breakdown based on active metric
+      updateMetricPanel();
+      
+      redrawOperationalLayers();
+      if (underservedActive) {
+        renderUnderservedList();
+      }
+    }
+
+    function updateMetricPanel() {
+      const isMultimodal = analysisMode === "multimodal_connectivity";
+      
+      const breakdownTitle = document.getElementById("breakdownTitle");
+      const kpiDirectLabel = document.getElementById("kpiDirectLabel");
+      const kpiFacilitiesLabel = document.getElementById("kpiFacilitiesLabel");
+      
+      if (activeMetric === "connectivity") {
+        kpiDirectLabel.textContent = isMultimodal ? "Direct multimodal access" : "Direct to terminal";
+        kpiFacilitiesLabel.textContent = isMultimodal ? "Total multimodal hubs" : "Bus facilities";
+        breakdownTitle.textContent = isMultimodal ? "Multimodal Connectivity" : "Terminal Connectivity";
+        
+        if (isMultimodal) {
+          document.getElementById("kpiTerminalDirect").textContent = fmt(data.summary.multimodal_connectivity_counts.Direct);
+          const totalHubs = data.summary.counts.bus_facilities_inside_cma + data.summary.counts.metro_stations + data.summary.counts.suburban_stations;
+          document.getElementById("kpiFacilities").textContent = fmt(totalHubs);
+          
+          drawBars("connectivityBars", data.summary.multimodal_connectivity_counts, ["Direct", "2 routes", "3 routes", "4+ routes", "No route connection"]);
+        } else {
+          document.getElementById("kpiTerminalDirect").textContent = fmt(data.summary.bus_only_connectivity_counts.Direct);
+          document.getElementById("kpiFacilities").textContent = fmt(data.summary.counts.bus_facilities_inside_cma);
+          
+          drawBars("connectivityBars", data.summary.bus_only_connectivity_counts, ["Direct", "2 buses", "3 buses", "4+ buses", "No route connection"]);
+        }
+      } else if (activeMetric === "ptal") {
+        kpiDirectLabel.textContent = "Average PTAL Index";
+        kpiFacilitiesLabel.textContent = "Peak PTAL Grade";
+        breakdownTitle.textContent = "PTAL Accessibility Grades";
+        
+        document.getElementById("kpiTerminalDirect").textContent = data.summary.ptal_average.toFixed(2);
+        
+        let peakGrade = "0";
+        let maxCount = -1;
+        const counts = data.summary.ptal_grade_counts;
+        for (const grade in counts) {
+          if (counts[grade] > maxCount) {
+            maxCount = counts[grade];
+            peakGrade = grade;
+          }
+        }
+        document.getElementById("kpiFacilities").textContent = "Grade " + peakGrade;
+        
+        const ptalOrder = ["6b", "6a", "5", "4", "3", "2", "1b", "1a", "0"];
+        drawBars("connectivityBars", data.summary.ptal_grade_counts, ptalOrder);
+      } else if (activeMetric === "nhi") {
+        kpiDirectLabel.textContent = "Mean Network Health";
+        kpiFacilitiesLabel.textContent = "Good/Excellent Health";
+        breakdownTitle.textContent = "Network Health Index (NHI)";
+        
+        document.getElementById("kpiTerminalDirect").textContent = data.summary.nhi_average.toFixed(1) + "%";
+        
+        const excellent = data.summary.nhi_score_counts["Excellent (90-100)"] || 0;
+        const good = data.summary.nhi_score_counts["Good (70-89)"] || 0;
+        const total = data.summary.counts.bus_stops_inside_cma;
+        const pct = total > 0 ? ((excellent + good) / total * 100).toFixed(1) + "%" : "0%";
+        document.getElementById("kpiFacilities").textContent = pct;
+        
+        const nhiOrder = ["Excellent (90-100)", "Good (70-89)", "Moderate (50-69)", "Weak (30-49)", "Critical (0-29)"];
+        drawBars("connectivityBars", data.summary.nhi_score_counts, nhiOrder);
       }
     }
 
@@ -1480,6 +1623,7 @@
         populateRouteSelect();
         buildStaticLayers();
         bindControls();
+        document.getElementById("metricSelect").value = "connectivity";
         
         // Trigger initial mode load (Bus-Only)
         switchMode("terminal_connectivity");
@@ -1502,6 +1646,8 @@
           <button id="tabFlowchart" class="tab-btn active" onclick="switchModalTab('flowchart')">1. System Pipeline Flowchart</button>
           <button id="tabDecisionTree" class="tab-btn" onclick="switchModalTab('decision_tree')">2. Stop Classification Decision Tree</button>
           <button id="tabTextSummary" class="tab-btn" onclick="switchModalTab('text_summary')">3. Routing & Logic Details</button>
+          <button id="tabPTAL" class="tab-btn" onclick="switchModalTab('ptal')">4. PTAL Index</button>
+          <button id="tabNHI" class="tab-btn" onclick="switchModalTab('nhi')">5. Network Health Index</button>
         </div>
         
         <div id="modalContentFlowchart" class="tab-content active">
@@ -1536,6 +1682,49 @@
               </a>
             </p>
           </div>
+        </div>
+
+        <div id="modalContentPTAL" class="tab-content">
+          <h3>Public Transport Accessibility Level (PTAL)</h3>
+          <p class="tab-description">PTAL measures walking access and transit service density from a stop's perspective using a standardized door-to-door transit accessibility index.</p>
+          <ul>
+            <li><strong>Walking Access Time:</strong> Calculates walk times from a stop to all neighboring nodes within 640m (buses/terminals) and 960m (metro/suburban rail), assuming a walk speed of 80 meters/minute (4.8 km/h).</li>
+            <li><strong>Scheduled Wait Time (SWT):</strong> Estimated using a route-count headway proxy plus mode reliability margins:
+              <ul>
+                <li>&gt; 10 routes serving stop: 5 min headway</li>
+                <li>5 to 10 routes: 10 min headway</li>
+                <li>2 to 4 routes: 15 min headway</li>
+                <li>1 route: 30 min headway</li>
+                <li><em>Reliability margins:</em> Bus = 2.0 min, Metro = 0.75 min, Suburban = 1.50 min.</li>
+              </ul>
+            </li>
+            <li><strong>Accessibility Index (AI):</strong> The dominant route (minimum access time $AT_{dom}$) is weighted fully, while all other accessible routes are weighted at 50%:
+              <br/><code style="display: block; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin: 6px 0; font-family: monospace; font-size: 11.5px;">AI = (30 / AT_dom) + 0.5 * &Sigma; (30 / AT_non_dom)</code>
+            </li>
+            <li><strong>PTAL Grades:</strong> AI is mapped to grades 0 (Very Poor) to 6b (Excellent) based on London standards.</li>
+          </ul>
+        </div>
+
+        <div id="modalContentNHI" class="tab-content">
+          <h3>Network Health Index (NHI)</h3>
+          <p class="tab-description">NHI evaluates the quality, reliability, and redundancy of transit services from a stop's perspective on a scale of 0 to 100.</p>
+          <ul>
+            <li><strong>Directness Score (30%):</strong> Compares actual transit route distance to Euclidean straight-line distance to the closest hub. Circuity is defined as <code>RouteDistance / EuclideanDistance</code>:
+              <br/><code style="display: block; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin: 6px 0; font-family: monospace; font-size: 11.5px;">S_directness = max(0, 100 * (2.0 - Circuity))</code>
+            </li>
+            <li><strong>Transfer Friction Score (30%):</strong> Assesses ease of connection to key hubs:
+              <ul>
+                <li>Direct connection: 100 points</li>
+                <li>1 transfer (2 routes): 70 points</li>
+                <li>2 transfers (3 routes): 30 points</li>
+                <li>3+ transfers or disconnected: 0 points</li>
+              </ul>
+            </li>
+            <li><strong>Multi-Modal Integration (20%):</strong> Awards 100 points if the stop is within 200m walking distance of a Metro or Suburban Rail station (acting as a multimodal transfer point), otherwise 0 points.</li>
+            <li><strong>Network Resilience (20%):</strong> Measures protection against single-line failures through route redundancy:
+              <br/><code style="display: block; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin: 6px 0; font-family: monospace; font-size: 11.5px;">S_resilience = 100 * (1 - e^(-0.3 * (RoutesCount - 1)))</code>
+            </li>
+          </ul>
         </div>
       </div>
     </div>

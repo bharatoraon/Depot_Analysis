@@ -98,6 +98,172 @@ def bucket_for_multimodal(routes_count):
     return "4+ routes"
 
 
+def get_route_distance(stop_pt, hub_pt, route_name, route_geoms):
+    if route_name in route_geoms:
+        geom = route_geoms[route_name]
+        try:
+            d_stop = geom.project(stop_pt)
+            d_hub = geom.project(hub_pt)
+            route_dist = abs(d_stop - d_hub)
+            euclidean_dist = stop_pt.distance(hub_pt)
+            return max(euclidean_dist, route_dist)
+        except Exception:
+            pass
+    return None
+
+
+def calculate_ptal(stop_id, nodes, stop_routes, tree, all_node_list):
+    stop_node = nodes[stop_id]
+    stop_geom_m = stop_node["geom_m"]
+    route_access_times = {}
+    
+    # Query STRtree with maximum walking buffer of 960 meters
+    buffer_geom = stop_geom_m.buffer(960.0)
+    candidate_indices = tree.query(buffer_geom)
+    
+    for idx in candidate_indices:
+        node = all_node_list[idx]
+        nid = node["id"]
+        mode = node["type"]
+        if mode in ("bus", "terminal", "depot"):
+            walk_buffer = 640.0
+            reliability_margin = 2.0
+        elif mode == "metro":
+            walk_buffer = 960.0
+            reliability_margin = 0.75
+        elif mode == "suburban":
+            walk_buffer = 960.0
+            reliability_margin = 1.50
+        else:
+            continue
+            
+        dist_m = stop_geom_m.distance(node["geom_m"])
+        if dist_m > walk_buffer:
+            continue
+            
+        walk_time = dist_m / 80.0
+        routes_at_j = stop_routes.get(nid, set())
+        n_routes = len(routes_at_j)
+        if n_routes == 0:
+            continue
+            
+        if n_routes > 10:
+            headway = 5.0
+        elif n_routes >= 5:
+            headway = 10.0
+        elif n_routes >= 2:
+            headway = 15.0
+        else:
+            headway = 30.0
+            
+        swt = (0.5 * headway) + reliability_margin
+        at = walk_time + swt
+        
+        for r in routes_at_j:
+            if r not in route_access_times or at < route_access_times[r]:
+                route_access_times[r] = at
+
+    if not route_access_times:
+        return 0.0, "0"
+        
+    sorted_routes = sorted(route_access_times.items(), key=lambda x: x[1])
+    dom_route, dom_at = sorted_routes[0]
+    
+    ai = 30.0 / dom_at
+    for r, at in sorted_routes[1:]:
+        ai += 0.5 * (30.0 / at)
+        
+    if ai <= 0.0:
+        grade = "0"
+    elif ai <= 2.5:
+        grade = "1a"
+    elif ai <= 5.0:
+        grade = "1b"
+    elif ai <= 10.0:
+        grade = "2"
+    elif ai <= 15.0:
+        grade = "3"
+    elif ai <= 20.0:
+        grade = "4"
+    elif ai <= 25.0:
+        grade = "5"
+    elif ai <= 40.0:
+        grade = "6a"
+    else:
+        grade = "6b"
+        
+    return round(ai, 2), grade
+
+
+def calculate_nhi(stop_id, nodes, stop_routes, footpaths, route_geoms, closest_hub_id, closest_hub_hops):
+    if closest_hub_id is None or closest_hub_hops == float("inf"):
+        s_directness = 0.0
+        s_transfer = 0.0
+    else:
+        stop_node = nodes[stop_id]
+        hub_node = nodes[closest_hub_id]
+        
+        if closest_hub_hops == 0:
+            s_directness = 100.0
+        else:
+            euclidean_dist = stop_node["geom_m"].distance(hub_node["geom_m"])
+            if closest_hub_hops == 1:
+                stop_r = set(stop_routes.get(stop_id, []))
+                hub_r = set(stop_routes.get(closest_hub_id, []))
+                shared_r = stop_r.intersection(hub_r)
+                
+                route_dist = None
+                for r in shared_r:
+                    d = get_route_distance(stop_node["geom_m"], hub_node["geom_m"], r, route_geoms)
+                    if d is not None:
+                        if route_dist is None or d < route_dist:
+                            route_dist = d
+                            
+                if route_dist is not None:
+                    circuity = route_dist / euclidean_dist if euclidean_dist > 0 else 1.0
+                    s_directness = max(0.0, 100.0 * (2.0 - circuity))
+                else:
+                    s_directness = 80.0
+            elif closest_hub_hops == 2:
+                s_directness = 50.0
+            elif closest_hub_hops == 3:
+                s_directness = 0.0
+            else:
+                s_directness = 0.0
+                
+        if closest_hub_hops <= 1:
+            s_transfer = 100.0
+        elif closest_hub_hops == 2:
+            s_transfer = 70.0
+        elif closest_hub_hops == 3:
+            s_transfer = 30.0
+        else:
+            s_transfer = 0.0
+            
+    is_multimodal_transfer = False
+    candidates = {stop_id}
+    if stop_id in footpaths:
+        candidates.update(footpaths[stop_id])
+        
+    for nid in candidates:
+        if nid in nodes and nodes[nid]["type"] in ("metro", "suburban"):
+            is_multimodal_transfer = True
+            break
+            
+    s_multimodal = 100.0 if is_multimodal_transfer else 0.0
+    
+    routes_count = len(stop_routes.get(stop_id, []))
+    if routes_count <= 1:
+        s_resilience = 0.0
+    else:
+        import math
+        s_resilience = 100.0 * (1.0 - math.exp(-0.3 * (routes_count - 1)))
+        
+    nhi = 0.3 * s_directness + 0.3 * s_transfer + 0.2 * s_multimodal + 0.2 * s_resilience
+    return round(nhi, 1)
+
+
+
 def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_route_types=None):
     # accessible_targets[nid] = {target_id: minimum_hops}
     accessible_targets = {nid: {} for nid in nodes}
@@ -179,6 +345,7 @@ def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_rout
 
 
 def main():
+    stop_routes = defaultdict(set)
     print("Loading boundaries and source layers...", flush=True)
     cma = gpd.read_file(DATA / "CMA.geojson").to_crs(CRS_WGS84)
     cma_union = cma.geometry.union_all()
@@ -320,6 +487,8 @@ def main():
             "geom_m": to_meters(geom),
             "raw_properties": f["properties"],
         }
+        for route in f["properties"].get("served_routes", []):
+            stop_routes[fid].add(route)
 
     # Metro stations
     metro_station_features = []
@@ -386,7 +555,6 @@ def main():
     # 5. Build Routes dict
     print("Building unified routes dict...", flush=True)
     routes_dict = {}
-    stop_routes = defaultdict(set)
 
     # Bus
     for r_name, sids in route_to_stops.items():
@@ -583,6 +751,31 @@ def main():
         for sub_id in sub_ids:
             stop_routes[sub_id].add(line_name)
 
+    # Build route geometries dictionary for NHI calculations
+    route_geoms = {}
+    for ft in routes_raw["features"]:
+        r_name = str(ft["properties"].get("route_name", "")).strip()
+        if r_name:
+            route_geoms[r_name] = to_meters(shape(ft["geometry"]))
+            
+    try:
+        from shapely.ops import unary_union
+        blue_fc = read_geojson(DATA / "blue_line_metro_corridor.geojson")
+        route_geoms["metro_blue_line"] = to_meters(unary_union([shape(ft["geometry"]) for ft in blue_fc["features"]]))
+        green_fc = read_geojson(DATA / "green_line_metro_corridor.geojson")
+        route_geoms["metro_green_line"] = to_meters(unary_union([shape(ft["geometry"]) for ft in green_fc["features"]]))
+    except Exception as e:
+        print(f"Warning: Failed to load metro geometries: {e}", flush=True)
+        
+    try:
+        from shapely.ops import unary_union
+        sub_fc = read_geojson(DATA / "suburban_corridor.geojson")
+        suburban_geom = to_meters(unary_union([shape(ft["geometry"]) for ft in sub_fc["features"]]))
+        for line_name in suburban_lines_def.keys():
+            route_geoms[line_name] = suburban_geom
+    except Exception as e:
+        print(f"Warning: Failed to load suburban geometries: {e}", flush=True)
+
     # 6. Build transfer footpaths
     print("Building spatial index for 200m walking transfers...", flush=True)
     all_node_list = list(nodes.values())
@@ -694,6 +887,7 @@ def main():
                 dist_m = stop_geom_m.distance(nodes[tid]["geom_m"])
                 hubs_with_dist.append((tid, nodes[tid]["name"], dist_m, hops))
 
+        closest_hub_hops = float('inf')
         if hubs_with_dist:
             hubs_with_dist.sort(key=lambda x: x[2])
             closest_hub_id = hubs_with_dist[0][0]
@@ -702,9 +896,24 @@ def main():
             closest_hub_hops = hubs_with_dist[0][3]
             multimodal_routes = 1 if closest_hub_hops <= 1 else closest_hub_hops
         else:
+            closest_hub_id = None
             closest_hub_name = None
             closest_hub_dist = None
             multimodal_routes = None
+
+        # Calculate PTAL index and grade
+        ptal_index, ptal_grade = calculate_ptal(sid, nodes, stop_routes, tree, all_node_list)
+        
+        # Calculate Network Health Index (NHI) score
+        nhi_score = calculate_nhi(
+            stop_id=sid,
+            nodes=nodes,
+            stop_routes=stop_routes,
+            footpaths=footpaths,
+            route_geoms=route_geoms,
+            closest_hub_id=closest_hub_id,
+            closest_hub_hops=closest_hub_hops
+        )
 
         props = dict(ft.get("properties", {}))
         qa_note = qa_facility_overrides.get(sid, "")
@@ -728,6 +937,10 @@ def main():
                 "multimodal_min_routes": multimodal_routes,
                 "multimodal_connectivity": bucket_for_multimodal(multimodal_routes),
                 "connectivity_qa_note": qa_note,
+                # PTAL and NHI metrics
+                "ptal_index": ptal_index,
+                "ptal_grade": ptal_grade,
+                "nhi_score": nhi_score,
             }
         )
         enriched_stops.append(feature(geom, props))
@@ -760,6 +973,35 @@ def main():
     terminal_counts = Counter(p["terminal_connectivity"] for p in cma_stops)
     multimodal_counts = Counter(p["multimodal_connectivity"] for p in cma_stops)
 
+    # PTAL and NHI calculations
+    cma_stops_with_ptal = [p["ptal_index"] for p in cma_stops if p["ptal_index"] is not None]
+    cma_stops_with_nhi = [p["nhi_score"] for p in cma_stops if p["nhi_score"] is not None]
+    mean_ptal = round(sum(cma_stops_with_ptal) / len(cma_stops_with_ptal), 2) if cma_stops_with_ptal else 0.0
+    mean_nhi = round(sum(cma_stops_with_nhi) / len(cma_stops_with_nhi), 1) if cma_stops_with_nhi else 0.0
+
+    ptal_grade_counts = Counter(p["ptal_grade"] for p in cma_stops)
+    
+    nhi_bins = {
+        "Excellent (90-100)": 0,
+        "Good (70-89)": 0,
+        "Moderate (50-69)": 0,
+        "Weak (30-49)": 0,
+        "Critical (0-29)": 0
+    }
+    for p in cma_stops:
+        score = p["nhi_score"]
+        if score is not None:
+            if score >= 90:
+                nhi_bins["Excellent (90-100)"] += 1
+            elif score >= 70:
+                nhi_bins["Good (70-89)"] += 1
+            elif score >= 50:
+                nhi_bins["Moderate (50-69)"] += 1
+            elif score >= 30:
+                nhi_bins["Weak (30-49)"] += 1
+            else:
+                nhi_bins["Critical (0-29)"] += 1
+
     summary = {
         "generated_from": str(DATA),
         "method": {
@@ -779,6 +1021,10 @@ def main():
         },
         "bus_only_connectivity_counts": dict(terminal_counts),
         "multimodal_connectivity_counts": dict(multimodal_counts),
+        "ptal_average": mean_ptal,
+        "nhi_average": mean_nhi,
+        "ptal_grade_counts": dict(ptal_grade_counts),
+        "nhi_score_counts": nhi_bins,
     }
 
     print("Writing enriched geospatial outputs to dashboard folder...", flush=True)

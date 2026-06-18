@@ -16,13 +16,32 @@
     "inferred_terminal_points": 15
   },
   "bus_only_connectivity_counts": {
-    "2 buses": 1557,
-    "Direct": 2515,
-    "3 buses": 73
+    "2 buses": 1432,
+    "Direct": 2699,
+    "3 buses": 14
   },
   "multimodal_connectivity_counts": {
-    "2 routes": 1535,
-    "Direct": 2522,
-    "3 routes": 88
+    "2 routes": 1506,
+    "Direct": 2580,
+    "3 routes": 59
+  },
+  "ptal_average": 51.71,
+  "nhi_average": 58.2,
+  "ptal_grade_counts": {
+    "1b": 282,
+    "3": 272,
+    "2": 481,
+    "6b": 1947,
+    "4": 329,
+    "1a": 295,
+    "5": 216,
+    "6a": 323
+  },
+  "nhi_score_counts": {
+    "Excellent (90-100)": 101,
+    "Good (70-89)": 1101,
+    "Moderate (50-69)": 1752,
+    "Weak (30-49)": 1132,
+    "Critical (0-29)": 59
   }
 }
