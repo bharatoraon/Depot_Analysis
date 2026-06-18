@@ -830,7 +830,6 @@
           <label class="toggle" style="--theme-color: #d97706; --theme-bg: #fef3c7;"><input type="checkbox" id="toggleFacilities" checked> Bus Terminals</label>
           <label class="toggle" style="--theme-color: #2563eb; --theme-bg: #eff6ff;"><input type="checkbox" id="toggleMetro" checked> Metro Rail</label>
           <label class="toggle" style="--theme-color: #7c2d12; --theme-bg: #fff7ed;"><input type="checkbox" id="toggleSuburban" checked> Suburban Rail</label>
-          <label class="toggle" style="--theme-color: #ec4899; --theme-bg: #fdf2f8;"><input type="checkbox" id="toggleHeatmap"> PTAL Heatmap</label>
         </div>
       </div>
 
@@ -862,7 +861,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
   <script>
     // Modal controls for GIS Methodology
     function openMethodologyModal() {
@@ -1301,7 +1299,7 @@
     }
 
     function updateToggleStates() {
-      ["toggleRoutes", "toggleStops", "toggleFacilities", "toggleMetro", "toggleSuburban", "toggleHeatmap"].forEach(id => {
+      ["toggleRoutes", "toggleStops", "toggleFacilities", "toggleMetro", "toggleSuburban"].forEach(id => {
         const checkbox = document.getElementById(id);
         const parent = checkbox.closest('.toggle');
         if (parent) {
@@ -1314,7 +1312,7 @@
       updateToggleStates();
 
       // Remove previous operational layers
-      ["stops", "routes", "facilities", "metroStations", "suburbanStations", "metroBlueCorridor", "metroGreenCorridor", "suburbanCorridor", "heatmap"].forEach(name => {
+      ["stops", "routes", "facilities", "metroStations", "suburbanStations", "metroBlueCorridor", "metroGreenCorridor", "suburbanCorridor"].forEach(name => {
         if (layers[name]) map.removeLayer(layers[name]);
       });
 
@@ -1489,41 +1487,6 @@
         layers.suburbanStations.addTo(map);
       }
 
-      if (document.getElementById("toggleHeatmap").checked) {
-        const points = [];
-        if (data.stops && data.stops.features) {
-          data.stops.features.forEach(f => {
-            if (f.properties.inside_cma && f.properties.ptal_index) {
-              const coords = f.geometry.coordinates;
-              const intensity = f.properties.ptal_index / 40.0;
-              points.push([coords[1], coords[0], Math.min(1.0, intensity)]);
-            }
-          });
-        }
-        if (data.metroStations && data.metroStations.features) {
-          data.metroStations.features.forEach(f => {
-            const coords = f.geometry.coordinates;
-            points.push([coords[1], coords[0], 1.0]);
-          });
-        }
-        if (points.length > 0) {
-          layers.heatmap = L.heatLayer(points, {
-            radius: 25,
-            blur: 15,
-            maxZoom: 13,
-            max: 1.0,
-            gradient: {
-              0.0: '#002244',
-              0.2: '#0000ff',
-              0.4: '#00ffff',
-              0.6: '#00ff00',
-              0.8: '#ffff00',
-              1.0: '#ff0000'
-            }
-          }).addTo(map);
-        }
-      }
-
       if (selectedRoute && layers.routes.getBounds().isValid()) {
         map.fitBounds(layers.routes.getBounds(), { padding: [28, 28], maxZoom: 13 });
       }
@@ -1650,7 +1613,7 @@
         selectedRoute = event.target.value;
         redrawOperationalLayers();
       });
-      ["toggleRoutes", "toggleStops", "toggleFacilities", "toggleMetro", "toggleSuburban", "toggleHeatmap"].forEach(id => {
+      ["toggleRoutes", "toggleStops", "toggleFacilities", "toggleMetro", "toggleSuburban"].forEach(id => {
         document.getElementById(id).addEventListener("change", redrawOperationalLayers);
       });
     }
