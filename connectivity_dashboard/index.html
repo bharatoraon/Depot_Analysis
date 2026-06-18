@@ -1356,6 +1356,8 @@
           layer.bindPopup(popupGrid(p.Name, [
             ["Type", "Metro Station"],
             ["Served Line", p.Line ? p.Line.join(", ") : "-"],
+            ["Avg Peak Headway", p.avg_peak_headway ? `${p.avg_peak_headway} mins` : "-"],
+            ["Min Peak Headway", p.min_peak_headway ? `${p.min_peak_headway} mins` : "-"],
             ["Multimodal Access", "Direct"]
           ]));
         }
@@ -1412,6 +1414,8 @@
 
           layer.bindPopup(popupGrid(p["Stop Name"] || "Bus stop", [
             ["Routes Served", Array.isArray(p.routes_clean) ? p.routes_clean.slice(0, 10).join(", ") : "-"],
+            ["Avg Peak Headway", p.avg_peak_headway ? `${p.avg_peak_headway} mins` : "-"],
+            ["Min Peak Headway", p.min_peak_headway ? `${p.min_peak_headway} mins` : "-"],
             [listLabel, listVal],
             [closestLabel, closestStr],
             [accLabel, accStr],
@@ -1689,13 +1693,13 @@
           <p class="tab-description">PTAL measures walking access and transit service density from a stop's perspective using a standardized door-to-door transit accessibility index.</p>
           <ul>
             <li><strong>Walking Access Time:</strong> Calculates walk times from a stop to all neighboring nodes within 640m (buses/terminals) and 960m (metro/suburban rail), assuming a walk speed of 80 meters/minute (4.8 km/h).</li>
-            <li><strong>Scheduled Wait Time (SWT):</strong> Estimated using a route-count headway proxy plus mode reliability margins:
+            <li><strong>Scheduled Wait Time (SWT):</strong> Calculated using empirical schedules from MTC & CMRL GTFS datasets for the morning peak period (08:00 - 10:00) where available, plus mode reliability margins.
               <ul>
-                <li>&gt; 10 routes serving stop: 5 min headway</li>
-                <li>5 to 10 routes: 10 min headway</li>
-                <li>2 to 4 routes: 15 min headway</li>
-                <li>1 route: 30 min headway</li>
-                <li><em>Reliability margins:</em> Bus = 2.0 min, Metro = 0.75 min, Suburban = 1.50 min.</li>
+                <li><strong>Empirical Headways:</strong> Direct lookup of exact scheduled peak headways per route and stop. Mapped CMRL Metro parent stations spatially (within 250m) to resolve name mismatches.</li>
+                <li><strong>Suburban Rail:</strong> Applied a standard 20.0-minute peak headway default (as timetables are not public).</li>
+                <li><strong>Heuristic Fallback:</strong> If GTFS schedule data is missing, we fall back to a route-count headway proxy (&gt;10 routes: 5m, 5-10 routes: 10m, 2-4 routes: 15m, 1 route: 30m).</li>
+                <li><strong>Reliability Margins:</strong> Bus = 2.0 min, Metro = 0.75 min, Suburban = 1.50 min.</li>
+                <li><em>Wait Time Formula:</em> <code>SWT = (0.5 * Headway) + ReliabilityMargin</code></li>
               </ul>
             </li>
             <li><strong>Accessibility Index (AI):</strong> The dominant route (minimum access time $AT_{dom}$) is weighted fully, while all other accessible routes are weighted at 50%:
@@ -1709,8 +1713,11 @@
           <h3>Network Health Index (NHI)</h3>
           <p class="tab-description">NHI evaluates the quality, reliability, and redundancy of transit services from a stop's perspective on a scale of 0 to 100.</p>
           <ul>
-            <li><strong>Directness Score (30%):</strong> Compares actual transit route distance to Euclidean straight-line distance to the closest hub. Circuity is defined as <code>RouteDistance / EuclideanDistance</code>:
-              <br/><code style="display: block; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin: 6px 0; font-family: monospace; font-size: 11.5px;">S_directness = max(0, 100 * (2.0 - Circuity))</code>
+            <li><strong>Directness Score (30%):</strong> Compares actual transit route distance to Euclidean straight-line distance to the closest hub. Circuity is defined as <code>RouteDistance / EuclideanDistance</code>.
+              <ul>
+                <li><strong>Empirical Routing Distance:</strong> Calculated by accumulating stop-to-stop segment distances along the GTFS stop sequence for buses, bypassing shape projection errors. Falls back to shape-based projection for non-GTFS routes.</li>
+                <li><em>Directness Score Formula:</em> <code style="display: block; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin: 6px 0; font-family: monospace; font-size: 11.5px;">S_directness = max(0, 100 * (2.0 - Circuity))</code></li>
+              </ul>
             </li>
             <li><strong>Transfer Friction Score (30%):</strong> Assesses ease of connection to key hubs:
               <ul>

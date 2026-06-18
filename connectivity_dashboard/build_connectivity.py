@@ -112,7 +112,7 @@ def get_route_distance(stop_pt, hub_pt, route_name, route_geoms):
     return None
 
 
-def calculate_ptal(stop_id, nodes, stop_routes, tree, all_node_list):
+def calculate_ptal(stop_id, nodes, stop_routes, tree, all_node_list, gtfs_data=None, metro_to_gtfs=None):
     stop_node = nodes[stop_id]
     stop_geom_m = stop_node["geom_m"]
     route_access_times = {}
@@ -147,19 +147,46 @@ def calculate_ptal(stop_id, nodes, stop_routes, tree, all_node_list):
         if n_routes == 0:
             continue
             
-        if n_routes > 10:
-            headway = 5.0
-        elif n_routes >= 5:
-            headway = 10.0
-        elif n_routes >= 2:
-            headway = 15.0
-        else:
-            headway = 30.0
-            
-        swt = (0.5 * headway) + reliability_margin
-        at = walk_time + swt
-        
         for r in routes_at_j:
+            headway = None
+            if mode in ("bus", "terminal", "depot"):
+                if gtfs_data:
+                    bus_headways = gtfs_data.get("mtc_bus_headways", {})
+                    if nid in bus_headways:
+                        headway = bus_headways[nid].get(r)
+                if headway is None:
+                    # Fallback to heuristic
+                    if n_routes > 10:
+                        headway = 5.0
+                    elif n_routes >= 5:
+                        headway = 10.0
+                    elif n_routes >= 2:
+                        headway = 15.0
+                    else:
+                        headway = 30.0
+            elif mode == "metro":
+                if gtfs_data and metro_to_gtfs:
+                    pid = metro_to_gtfs.get(nid)
+                    if pid:
+                        metro_headways = gtfs_data.get("cmrl_metro_headways", {}).get(pid, {})
+                        matching_headways = []
+                        for g_route, h_val in metro_headways.items():
+                            if r == "metro_blue_line" and ("SWN" in g_route or "SAP" in g_route):
+                                matching_headways.append(h_val)
+                            elif r == "metro_green_line" and ("SMM" in g_route or "SCC" in g_route):
+                                matching_headways.append(h_val)
+                        if matching_headways:
+                            headway = min(matching_headways)
+                if headway is None:
+                    headway = 10.0
+            elif mode == "suburban":
+                headway = 20.0
+            else:
+                continue
+
+            swt = (0.5 * headway) + reliability_margin
+            at = walk_time + swt
+            
             if r not in route_access_times or at < route_access_times[r]:
                 route_access_times[r] = at
 
@@ -195,7 +222,18 @@ def calculate_ptal(stop_id, nodes, stop_routes, tree, all_node_list):
     return round(ai, 2), grade
 
 
-def calculate_nhi(stop_id, nodes, stop_routes, footpaths, route_geoms, closest_hub_id, closest_hub_hops):
+def get_gtfs_route_distance(stop_id, hub_id, route_name, gtfs_data):
+    if not gtfs_data:
+        return None
+    dist_maps = gtfs_data.get("mtc_route_stop_distances", {}).get(route_name)
+    if dist_maps:
+        for dist_map in dist_maps:
+            if stop_id in dist_map and hub_id in dist_map:
+                return abs(dist_map[stop_id] - dist_map[hub_id])
+    return None
+
+
+def calculate_nhi(stop_id, nodes, stop_routes, footpaths, route_geoms, closest_hub_id, closest_hub_hops, gtfs_data=None):
     if closest_hub_id is None or closest_hub_hops == float("inf"):
         s_directness = 0.0
         s_transfer = 0.0
@@ -214,7 +252,9 @@ def calculate_nhi(stop_id, nodes, stop_routes, footpaths, route_geoms, closest_h
                 
                 route_dist = None
                 for r in shared_r:
-                    d = get_route_distance(stop_node["geom_m"], hub_node["geom_m"], r, route_geoms)
+                    d = get_gtfs_route_distance(stop_id, closest_hub_id, r, gtfs_data)
+                    if d is None:
+                        d = get_route_distance(stop_node["geom_m"], hub_node["geom_m"], r, route_geoms)
                     if d is not None:
                         if route_dist is None or d < route_dist:
                             route_dist = d
@@ -347,6 +387,16 @@ def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_rout
 def main():
     stop_routes = defaultdict(set)
     print("Loading boundaries and source layers...", flush=True)
+    
+    # Load precomputed GTFS schedules and distances
+    gtfs_data = None
+    try:
+        with open(OUT / "gtfs_precomputed.json", "r", encoding="utf-8") as f:
+            gtfs_data = json.load(f)
+        print("Loaded precomputed GTFS schedules and route distances successfully.", flush=True)
+    except Exception as e:
+        print(f"Warning: Failed to load gtfs_precomputed.json, falling back to heuristics: {e}", flush=True)
+
     cma = gpd.read_file(DATA / "CMA.geojson").to_crs(CRS_WGS84)
     cma_union = cma.geometry.union_all()
     cma_prepared = prep(cma_union)
@@ -848,6 +898,40 @@ def main():
                 multimodal_acc[sid] = {}
             multimodal_acc[sid][sid] = 0
 
+    # Map metro stations to GTFS parent station stops for schedule alignment
+    print("Loading CMRL parent stations from GTFS for spatial mapping...", flush=True)
+    cmrl_parent_stops_geom_m = {}
+    try:
+        import csv
+        with open(BASE / "CUMTA_GTFS" / "CMRL" / "stops.txt", "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f, skipinitialspace=True)
+            for row in reader:
+                if row.get("location_type") == "1":
+                    sid = row["stop_id"].strip()
+                    lon = float(row["stop_lon"])
+                    lat = float(row["stop_lat"])
+                    cmrl_parent_stops_geom_m[sid] = to_meters(Point(lon, lat))
+        print(f"Loaded {len(cmrl_parent_stops_geom_m)} parent metro stops.", flush=True)
+    except Exception as e:
+        print(f"Warning: Failed to load CMRL stops.txt for spatial join: {e}", flush=True)
+
+    metro_to_gtfs = {}
+    for mid, node in nodes.items():
+        if node["type"] == "metro":
+            geom_m = node["geom_m"]
+            closest_pid = None
+            min_dist = 250.0  # max 250m
+            for pid, p_geom_m in cmrl_parent_stops_geom_m.items():
+                dist = geom_m.distance(p_geom_m)
+                if dist < min_dist:
+                    min_dist = dist
+                    closest_pid = pid
+            if closest_pid:
+                metro_to_gtfs[mid] = closest_pid
+                print(f"Mapped metro station {node['name']} ({mid}) -> GTFS parent {closest_pid}", flush=True)
+            else:
+                print(f"Warning: Could not map metro station {node['name']} ({mid}) to any GTFS parent", flush=True)
+
     # 9. Enrich and export Bus Stops
     print("Enriching bus stops connectivity metadata...", flush=True)
     enriched_stops = []
@@ -902,7 +986,7 @@ def main():
             multimodal_routes = None
 
         # Calculate PTAL index and grade
-        ptal_index, ptal_grade = calculate_ptal(sid, nodes, stop_routes, tree, all_node_list)
+        ptal_index, ptal_grade = calculate_ptal(sid, nodes, stop_routes, tree, all_node_list, gtfs_data, metro_to_gtfs)
         
         # Calculate Network Health Index (NHI) score
         nhi_score = calculate_nhi(
@@ -912,8 +996,35 @@ def main():
             footpaths=footpaths,
             route_geoms=route_geoms,
             closest_hub_id=closest_hub_id,
-            closest_hub_hops=closest_hub_hops
+            closest_hub_hops=closest_hub_hops,
+            gtfs_data=gtfs_data
         )
+
+        # Calculate stop-level headway stats to save in properties
+        peak_headways = []
+        if gtfs_data:
+            bus_headways = gtfs_data.get("mtc_bus_headways", {})
+            if sid in bus_headways:
+                for r in rs:
+                    h = bus_headways[sid].get(r)
+                    if h is not None:
+                        peak_headways.append(h)
+        
+        # If no headways are found in GTFS, estimate from heuristic fallbacks
+        if not peak_headways:
+            # Fallback headway based on n_routes
+            if len(rs) > 10:
+                fallback_h = 5.0
+            elif len(rs) >= 5:
+                fallback_h = 10.0
+            elif len(rs) >= 2:
+                fallback_h = 15.0
+            else:
+                fallback_h = 30.0
+            peak_headways = [fallback_h] * len(rs)
+            
+        avg_headway = round(sum(peak_headways) / len(peak_headways), 1) if peak_headways else None
+        min_headway = min(peak_headways) if peak_headways else None
 
         props = dict(ft.get("properties", {}))
         qa_note = qa_facility_overrides.get(sid, "")
@@ -941,6 +1052,8 @@ def main():
                 "ptal_index": ptal_index,
                 "ptal_grade": ptal_grade,
                 "nhi_score": nhi_score,
+                "avg_peak_headway": avg_headway,
+                "min_peak_headway": min_headway,
             }
         )
         enriched_stops.append(feature(geom, props))
@@ -1026,6 +1139,23 @@ def main():
         "ptal_grade_counts": dict(ptal_grade_counts),
         "nhi_score_counts": nhi_bins,
     }
+
+    # Enrich metro station features with precomputed headway stats
+    if metro_to_gtfs:
+        for ft in metro_station_features:
+            name = ft["properties"].get("Name")
+            mid = f"metro_{normalize_name(name)}"
+            pid = metro_to_gtfs.get(mid)
+            avg_h = None
+            min_h = None
+            if gtfs_data and pid:
+                metro_headways = gtfs_data.get("cmrl_metro_headways", {}).get(pid, {})
+                if metro_headways:
+                    vals = list(metro_headways.values())
+                    avg_h = round(sum(vals) / len(vals), 1)
+                    min_h = min(vals)
+            ft["properties"]["avg_peak_headway"] = avg_h
+            ft["properties"]["min_peak_headway"] = min_h
 
     print("Writing enriched geospatial outputs to dashboard folder...", flush=True)
     write_geojson("bus_stops_connectivity.geojson", [s for s in enriched_stops if s["properties"]["inside_cma"]])
