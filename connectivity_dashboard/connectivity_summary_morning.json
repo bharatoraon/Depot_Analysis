@@ -1,0 +1,66 @@
+{
+  "generated_from": "/Volumes/Sandisk SSD/Depot_analysis/data",
+  "method": {
+    "bus_only_connectivity": "RAPTOR Round-Based Transit routing on MTC bus routes only.",
+    "multimodal_connectivity": "Multimodal RAPTOR routing incorporating Bus + Metro (Blue/Green) + Suburban Rail lines with walking transfers under 200m.",
+    "qa_corrections": "Manual validation overrides applied for CMBT and Kundrathur depot stop locations."
+  },
+  "counts": {
+    "routes": 637,
+    "bus_stops": 5608,
+    "bus_stops_inside_cma": 4145,
+    "metro_stations": 41,
+    "suburban_stations": 51,
+    "bus_facilities_total": 90,
+    "bus_facilities_inside_cma": 78,
+    "inferred_terminal_points": 15
+  },
+  "bus_only_connectivity_counts": {
+    "2 buses": 1432,
+    "Direct": 2699,
+    "3 buses": 14
+  },
+  "multimodal_connectivity_counts": {
+    "2 routes": 1500,
+    "Direct": 2583,
+    "3 routes": 62
+  },
+  "ptal_average": 22.05,
+  "nhi_average": 58.6,
+  "ptal_grade_counts": {
+    "1a": 587,
+    "2": 698,
+    "1b": 418,
+    "6b": 624,
+    "4": 303,
+    "5": 356,
+    "6a": 784,
+    "3": 375
+  },
+  "nhi_score_counts": {
+    "Excellent (90-100)": 101,
+    "Good (70-89)": 1143,
+    "Moderate (50-69)": 1750,
+    "Weak (30-49)": 1089,
+    "Critical (0-29)": 62
+  },
+  "ptal_gps_average": 26.29,
+  "nhi_gps_average": 61.8,
+  "ptal_gps_grade_counts": {
+    "1a": 420,
+    "2": 551,
+    "6b": 912,
+    "5": 282,
+    "6a": 804,
+    "3": 532,
+    "1b": 374,
+    "4": 270
+  },
+  "nhi_gps_score_counts": {
+    "Excellent (90-100)": 126,
+    "Good (70-89)": 1001,
+    "Moderate (50-69)": 2348,
+    "Weak (30-49)": 608,
+    "Critical (0-29)": 62
+  }
+}

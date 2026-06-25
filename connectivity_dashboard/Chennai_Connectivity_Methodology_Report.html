@@ -86,7 +86,43 @@
     <h3>4.1 Precise Distance Metrics & Representative Selection via PyProj</h3>
     <p>For dashboard tooltip generation, commuter proximity to terminals was calculated in accurate meters rather than degrees. Coordinates were projected from WGS84 (<code>EPSG:4326</code>) to the local projected coordinate system (<code>EPSG:32644</code>) using PyProj. The program computes the Euclidean distance to all reachable terminals and selects the geographically closest one, tying the stop's transfer count to that closest facility. Additionally, the dashboard's "Underserved Focus" is updated to isolate stops requiring <strong>2 or more transfers</strong> (3+ buses/routes or disconnected) to identify the true transit deserts.</p>
 
-    <h2>5. Spatial Control & Outcomes</h2>
+    <h2>5. GPS-Empirical Integration & Performance Gap Analysis</h2>
+    <p>While theoretical network connectivity modelings are helpful baseline indicators of structural transit access, actual commuter wait times and service reliability often vary significantly under real-world traffic conditions. To bridge this gap, we ingested raw GPS telemetry logs of the MTC bus fleet (May 20, 2026 morning peak hour 08:00 - 10:00 AM IST) representing over 5.5 GB of raw operations data.</p>
+    
+    <h3>5.1 High-Performance Spatial Indexing</h3>
+    <p>Mapping 560,000+ raw GPS coordinate pings to the 4,145 transit stop points presents a computational bottleneck ($O(N \times M)$ search time). We resolved this by partitioning the transit stops into a spatial grid cell index of 0.002-degree bins. Each GPS ping is queried against only the corresponding and adjacent grid cells, reducing mapping lookups to a near constant $O(1)$ search time. Pings were successfully filtered and matched to served stops within a 100-meter threshold in under 60 seconds.</p>
+
+    <h3>5.2 Travel Speed Reconstruction</h3>
+    <p>Since the raw speed data attributes were empty in the source telemetry datasets, average bus travel speeds were reconstructed dynamically. The algorithm calculates coordinate displacements ($\Delta x, \Delta y$) using chronological coordinate timestamps ($\Delta t$) between consecutive pings for each unique vehicle ID, establishing real-world speeds along the transit routes.</p>
+
+    <h3>5.3 GPS-Empirical PTAL Accessibility</h3>
+    <p>Standard scheduled headways were replaced with GPS-observed headways (calculated as chronological gaps between consecutive arrivals at each stop). Real wait times were then computed as <code>SWT = (0.5 * Headway_GPS) + 2.0 mins</code> (including a 2.0-minute bus reliability margin), which were fed directly into the London PTAL Accessibility Index formula to visualize actual door-to-door accessibility levels.</p>
+
+    <h3>5.4 GPS-Empirical Network Health (NHI)</h3>
+    <p>The operational Network Health Index (NHI) was upgraded by replacing the static "Network Resilience" score (20%) with two dynamic real-time performance attributes, weighted at 10% each:</p>
+    <ul>
+        <li><strong>Headway Reliability ($S_{reliability}$):</strong> Evaluates headway consistency based on the Coefficient of Variation ($CV = \sigma / \mu$) of stop headways. Stops with high irregularity (e.g. bus bunching where $CV > 1.0$) are heavily penalized.</li>
+        <li><strong>Travel Speed ($S_{speed}$):</strong> Scores stops based on average observed travel speeds, directly incorporating traffic congestion penalties into the transit quality index.</li>
+    </ul>
+
+    <h3>5.5 Performance Gap Mapping (Diverging Delta Layers)</h3>
+    <p>To identify where Chennai's transit network fails to meet timetables, we developed a dedicated variance mapping module (<code>compare.html</code>). For each stop, the dashboard computes the performance gap:
+        <br><code>&Delta;PTAL = PTAL_GPS - PTAL_Sch</code>
+        <br><code>&Delta;NHI = NHI_GPS - NHI_Sch</code>
+    </p>
+    <p>These deltas are visual-mapped using a diverging Red-Gray-Green color scale to allow planners to instantly target operational bottlenecks (Red) and transit gains (Green) across the metropolitan region.</p>
+
+    <h3>5.6 Multi-Period Temporal Comparative Analysis</h3>
+    <p>To examine transit operations across different travel conditions, the analysis has been extended to support three distinct time periods:</p>
+    <ul>
+        <li><strong>Morning Peak (08:00 - 10:00 AM IST / 02:30 - 04:30 UTC):</strong> The baseline period representing early commute traffic.</li>
+        <li><strong>Midday Off-Peak (12:00 - 02:00 PM IST / 06:30 - 08:30 UTC):</strong> Represents off-peak traffic flow and operational baselines.</li>
+        <li><strong>Evening Peak (05:00 - 07:00 PM IST / 11:30 - 13:30 UTC):</strong> Captures evening commute traffic and maximum network strain.</li>
+    </ul>
+    <p>Planners can toggle between these time periods directly in the dashboards, dynamically loading the corresponding GPS observed and schedule timetabled datasets.</p>
+
+
+    <h2>6. Spatial Control & Outcomes</h2>
     <p>Finally, to maintain analytical integrity relative to jurisdictional boundaries, a strict spatial clip was applied using <code>Shapely.prepared</code> against the unified CMA polygon boundary. Any generated data points falling outside the CMA were aggressively pruned.</p>
 
     <p><strong>Conclusion:</strong> The resulting dataset and interactive Leaflet dashboard provide stakeholders and policymakers with a transparent, algorithmically verified view of Chennai's transit connectivity. By cleaning chaotic data strings, constructing a spatial-transfer graph, and employing standard RAPTOR routing principles, the application successfully transitions raw point data into actionable, network-level urban intelligence.</p>

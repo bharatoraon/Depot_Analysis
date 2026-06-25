@@ -743,6 +743,13 @@
 <body>
   <div class="app">
     <aside>
+      <div class="dashboard-nav" style="display: flex; justify-content: space-between; align-items: center; background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 700; margin-bottom: 8px;">
+        <span style="color: #166534;">Performance Tracker</span>
+        <a href="compare.html" style="color: #15803d; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+          Compare Schedules vs. GPS
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 12px; height: 12px;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+        </a>
+      </div>
       <div>
         <h1>Transit Connectivity</h1>
         <p class="subtitle">Multi-tier accessibility analysis dashboard for the Chennai Metropolitan Area.</p>
@@ -764,13 +771,25 @@
         </button>
       </div>
 
+      <!-- Time Period Selector -->
+      <div class="control" style="margin-bottom: 12px;">
+        <label for="periodSelect" style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: .08em; margin-bottom: 6px;">Analysis Period</label>
+        <select id="periodSelect" onchange="switchPeriod(this.value)">
+          <option value="morning" selected>Morning Peak (08:00 - 10:00 AM)</option>
+          <option value="midday">Midday Off-Peak (12:00 - 02:00 PM)</option>
+          <option value="evening">Evening Peak (05:00 - 07:00 PM)</option>
+        </select>
+      </div>
+
       <!-- Metric Selector -->
       <div class="control" style="margin-bottom: 0;">
         <label for="metricSelect" style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: .08em; margin-bottom: 6px;">Select Metric Layer</label>
         <select id="metricSelect" onchange="switchMetric(this.value)">
           <option value="connectivity">Transfer Connectivity (RAPTOR Hops)</option>
           <option value="ptal">PTAL Accessibility Index</option>
+          <option value="ptal_gps">PTAL Accessibility (GPS-Empirical)</option>
           <option value="nhi">Network Health Index (NHI)</option>
+          <option value="nhi_gps">Network Health Index (GPS-Empirical)</option>
         </select>
       </div>
 
@@ -891,6 +910,9 @@
       } else if (tabId === 'nhi') {
         document.getElementById("tabNHI").classList.add("active");
         document.getElementById("modalContentNHI").classList.add("active");
+      } else if (tabId === 'gps_empirical') {
+        document.getElementById("tabGPSEmpirical").classList.add("active");
+        document.getElementById("modalContentGPSEmpirical").classList.add("active");
       }
     }
 
@@ -993,8 +1015,17 @@
     function stopColour(props) {
       if (activeMetric === "ptal") {
         return ptalColours[props.ptal_grade] || "#64748b";
+      } else if (activeMetric === "ptal_gps") {
+        return ptalColours[props.ptal_gps_grade] || "#64748b";
       } else if (activeMetric === "nhi") {
         const score = props.nhi_score;
+        if (score >= 90) return "#16a34a";
+        if (score >= 70) return "#84cc16";
+        if (score >= 50) return "#eab308";
+        if (score >= 30) return "#f59e0b";
+        return "#dc2626";
+      } else if (activeMetric === "nhi_gps") {
+        const score = props.nhi_gps_score;
         if (score >= 90) return "#16a34a";
         if (score >= 70) return "#84cc16";
         if (score >= 50) return "#eab308";
@@ -1268,20 +1299,22 @@
             <div class="legend-row"><span class="line-swatch" style="background:#16a34a"></span>Metro Green Line</div>
             <div class="legend-row"><span class="line-swatch" style="background:#7c2d12; border-style: dashed; border-width: 1px 0 0 0; height: 1px;"></span>Suburban Rail Corridor</div>`;
         }
-      } else if (activeMetric === "ptal") {
+      } else if (activeMetric === "ptal" || activeMetric === "ptal_gps") {
         const keys = ["6b", "6a", "5", "4", "3", "2", "1b", "1a", "0"];
+        const title = activeMetric === "ptal_gps" ? "PTAL Grade (GPS-Empirical)" : "PTAL Accessibility Grade";
         el.innerHTML = `
-          <div class="legend-title">PTAL Accessibility Grade</div>
+          <div class="legend-title">${title}</div>
           ${keys.map(key => {
             const desc = key === "6b" ? "Excellent" : (key === "0" ? "Poor / None" : "");
             const text = desc ? `${key} (${desc})` : key;
             return `<div class="legend-row"><span class="swatch" style="background:${ptalColours[key]}"></span>${text}</div>`;
           }).join("")}
         `;
-      } else if (activeMetric === "nhi") {
+      } else if (activeMetric === "nhi" || activeMetric === "nhi_gps") {
         const keys = ["Excellent (90-100)", "Good (70-89)", "Moderate (50-69)", "Weak (30-49)", "Critical (0-29)"];
+        const title = activeMetric === "nhi_gps" ? "Network Health (GPS-Empirical)" : "Network Health Index (NHI)";
         el.innerHTML = `
-          <div class="legend-title">Network Health Index (NHI)</div>
+          <div class="legend-title">${title}</div>
           ${keys.map(key => `<div class="legend-row"><span class="swatch" style="background:${nhiColours[key]}"></span>${key}</div>`).join("")}
         `;
       }
@@ -1419,8 +1452,10 @@
             [listLabel, listVal],
             [closestLabel, closestStr],
             [accLabel, accStr],
-            ["PTAL Grade", p.ptal_grade ? `${p.ptal_grade} (Index: ${p.ptal_index})` : "-"],
-            ["Network Health", p.nhi_score ? `${p.nhi_score}/100` : "-"],
+            ["PTAL Grade (Sch)", p.ptal_grade ? `${p.ptal_grade} (Index: ${p.ptal_index})` : "-"],
+            ["PTAL Grade (GPS)", p.ptal_gps_grade ? `${p.ptal_gps_grade} (Index: ${p.ptal_gps_index})` : "-"],
+            ["Network Health (Sch)", p.nhi_score ? `${p.nhi_score}/100` : "-"],
+            ["Network Health (GPS)", p.nhi_gps_score ? `${p.nhi_gps_score}/100` : "-"],
             ["QA corrections", p.connectivity_qa_note || "-"]
           ]));
 
@@ -1429,16 +1464,27 @@
             <strong style="color: #0f172a;">${p["Stop Name"] || "Bus stop"}</strong>`;
           
           if (activeMetric === "ptal") {
-            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">PTAL Grade:</span>
+            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">PTAL Grade (Sch):</span>
                            <br/><span style="color: ${ptalColours[p.ptal_grade] || '#0284c7'}; font-weight: 700;">Grade ${p.ptal_grade} (Index: ${p.ptal_index})</span>`;
+          } else if (activeMetric === "ptal_gps") {
+            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">PTAL Grade (GPS):</span>
+                           <br/><span style="color: ${ptalColours[p.ptal_gps_grade] || '#0284c7'}; font-weight: 700;">Grade ${p.ptal_gps_grade} (Index: ${p.ptal_gps_index})</span>`;
           } else if (activeMetric === "nhi") {
             let healthCol = "#16a34a";
             if (p.nhi_score < 30) healthCol = "#dc2626";
             else if (p.nhi_score < 50) healthCol = "#f59e0b";
             else if (p.nhi_score < 70) healthCol = "#eab308";
             else if (p.nhi_score < 90) healthCol = "#84cc16";
-            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">Network Health:</span>
+            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">Network Health (Sch):</span>
                            <br/><span style="color: ${healthCol}; font-weight: 700;">${p.nhi_score}/100</span>`;
+          } else if (activeMetric === "nhi_gps") {
+            let healthCol = "#16a34a";
+            if (p.nhi_gps_score < 30) healthCol = "#dc2626";
+            else if (p.nhi_gps_score < 50) healthCol = "#f59e0b";
+            else if (p.nhi_gps_score < 70) healthCol = "#eab308";
+            else if (p.nhi_gps_score < 90) healthCol = "#84cc16";
+            tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">Network Health (GPS):</span>
+                           <br/><span style="color: ${healthCol}; font-weight: 700;">${p.nhi_gps_score}/100</span>`;
           } else {
             if (closestName) {
               tooltipHtml += `<br/><span style="color: #64748b; font-weight: 550; font-size: 10px;">${closestLabel}:</span>
@@ -1587,6 +1633,26 @@
         
         const ptalOrder = ["6b", "6a", "5", "4", "3", "2", "1b", "1a", "0"];
         drawBars("connectivityBars", data.summary.ptal_grade_counts, ptalOrder);
+      } else if (activeMetric === "ptal_gps") {
+        kpiDirectLabel.textContent = "Mean PTAL (GPS)";
+        kpiFacilitiesLabel.textContent = "Peak PTAL Grade (GPS)";
+        breakdownTitle.textContent = "GPS-Empirical PTAL Grades";
+        
+        document.getElementById("kpiTerminalDirect").textContent = data.summary.ptal_gps_average.toFixed(2);
+        
+        let peakGrade = "0";
+        let maxCount = -1;
+        const counts = data.summary.ptal_gps_grade_counts || {};
+        for (const grade in counts) {
+          if (counts[grade] > maxCount) {
+            maxCount = counts[grade];
+            peakGrade = grade;
+          }
+        }
+        document.getElementById("kpiFacilities").textContent = "Grade " + peakGrade;
+        
+        const ptalOrder = ["6b", "6a", "5", "4", "3", "2", "1b", "1a", "0"];
+        drawBars("connectivityBars", data.summary.ptal_gps_grade_counts || {}, ptalOrder);
       } else if (activeMetric === "nhi") {
         kpiDirectLabel.textContent = "Mean Network Health";
         kpiFacilitiesLabel.textContent = "Good/Excellent Health";
@@ -1602,6 +1668,21 @@
         
         const nhiOrder = ["Excellent (90-100)", "Good (70-89)", "Moderate (50-69)", "Weak (30-49)", "Critical (0-29)"];
         drawBars("connectivityBars", data.summary.nhi_score_counts, nhiOrder);
+      } else if (activeMetric === "nhi_gps") {
+        kpiDirectLabel.textContent = "Mean Health (GPS)";
+        kpiFacilitiesLabel.textContent = "Good/Excellent (GPS)";
+        breakdownTitle.textContent = "GPS Network Health Index";
+        
+        document.getElementById("kpiTerminalDirect").textContent = data.summary.nhi_gps_average.toFixed(1) + "%";
+        
+        const excellent = data.summary.nhi_gps_score_counts["Excellent (90-100)"] || 0;
+        const good = data.summary.nhi_gps_score_counts["Good (70-89)"] || 0;
+        const total = data.summary.counts.bus_stops_inside_cma;
+        const pct = total > 0 ? ((excellent + good) / total * 100).toFixed(1) + "%" : "0%";
+        document.getElementById("kpiFacilities").textContent = pct;
+        
+        const nhiOrder = ["Excellent (90-100)", "Good (70-89)", "Moderate (50-69)", "Weak (30-49)", "Critical (0-29)"];
+        drawBars("connectivityBars", data.summary.nhi_gps_score_counts || {}, nhiOrder);
       }
     }
 
@@ -1616,6 +1697,32 @@
       ["toggleRoutes", "toggleStops", "toggleFacilities", "toggleMetro", "toggleSuburban"].forEach(id => {
         document.getElementById(id).addEventListener("change", redrawOperationalLayers);
       });
+    }
+
+    function switchPeriod(period) {
+      document.getElementById("statusPill").textContent = `Loading data for ${period === 'morning' ? 'Morning Peak' : period === 'midday' ? 'Midday Off-Peak' : 'Evening Peak'}...`;
+      
+      const periodFiles = {
+        summary: `connectivity_summary_${period}.json`,
+        stops: `bus_stops_connectivity_${period}.geojson`,
+        metroStations: `metro_stations_enriched_${period}.geojson`
+      };
+      
+      Promise.all(Object.entries(periodFiles).map(([key, path]) => loadJSON(path).then(json => [key, json])))
+        .then(entries => {
+          entries.forEach(([key, json]) => {
+            data[key] = json;
+          });
+          
+          document.getElementById("kpiStops").textContent = fmt(data.summary.counts.bus_stops_inside_cma);
+          switchMode(analysisMode);
+          
+          document.getElementById("statusPill").textContent = `${period === 'morning' ? 'Morning Peak' : period === 'midday' ? 'Midday Off-Peak' : 'Evening Peak'} loaded`;
+        })
+        .catch(error => {
+          document.getElementById("statusPill").textContent = `Error loading period: ${error.message}`;
+          console.error(error);
+        });
     }
 
     Promise.all(Object.entries(files).map(([key, path]) => loadJSON(path).then(json => [key, json])))
@@ -1652,6 +1759,7 @@
           <button id="tabTextSummary" class="tab-btn" onclick="switchModalTab('text_summary')">3. Routing & Logic Details</button>
           <button id="tabPTAL" class="tab-btn" onclick="switchModalTab('ptal')">4. PTAL Index</button>
           <button id="tabNHI" class="tab-btn" onclick="switchModalTab('nhi')">5. Network Health Index</button>
+          <button id="tabGPSEmpirical" class="tab-btn" onclick="switchModalTab('gps_empirical')">6. GPS-Empirical Metrics</button>
         </div>
         
         <div id="modalContentFlowchart" class="tab-content active">
@@ -1693,9 +1801,9 @@
           <p class="tab-description">PTAL measures walking access and transit service density from a stop's perspective using a standardized door-to-door transit accessibility index.</p>
           <ul>
             <li><strong>Walking Access Time:</strong> Calculates walk times from a stop to all neighboring nodes within 640m (buses/terminals) and 960m (metro/suburban rail), assuming a walk speed of 80 meters/minute (4.8 km/h).</li>
-            <li><strong>Scheduled Wait Time (SWT):</strong> Calculated using empirical schedules from MTC & CMRL GTFS datasets for the morning peak period (08:00 - 10:00) where available, plus mode reliability margins.
+            <li><strong>Scheduled Wait Time (SWT):</strong> Calculated using empirical schedules from MTC & CMRL GTFS datasets for the selected period (Morning Peak: 08:00-10:00, Midday Off-Peak: 12:00-14:00, Evening Peak: 17:00-19:00) where available, plus mode reliability margins.
               <ul>
-                <li><strong>Empirical Headways:</strong> Direct lookup of exact scheduled peak headways per route and stop. Mapped CMRL Metro parent stations spatially (within 250m) to resolve name mismatches.</li>
+                <li><strong>Empirical Headways:</strong> Direct lookup of exact scheduled peak headways per route and stop. Mapped CMRL Metro parent stations spatially (within 250m) to resolve name mismatches (e.g., CMBT).</li>
                 <li><strong>Suburban Rail:</strong> Applied a standard 20.0-minute peak headway default (as timetables are not public).</li>
                 <li><strong>Heuristic Fallback:</strong> If GTFS schedule data is missing, we fall back to a route-count headway proxy (&gt;10 routes: 5m, 5-10 routes: 10m, 2-4 routes: 15m, 1 route: 30m).</li>
                 <li><strong>Reliability Margins:</strong> Bus = 2.0 min, Metro = 0.75 min, Suburban = 1.50 min.</li>
@@ -1731,6 +1839,23 @@
             <li><strong>Network Resilience (20%):</strong> Measures protection against single-line failures through route redundancy:
               <br/><code style="display: block; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin: 6px 0; font-family: monospace; font-size: 11.5px;">S_resilience = 100 * (1 - e^(-0.3 * (RoutesCount - 1)))</code>
             </li>
+          </ul>
+        </div>
+
+        <div id="modalContentGPSEmpirical" class="tab-content">
+          <h3>GPS-Empirical Operations & Performance Gaps</h3>
+          <p class="tab-description">We integrated raw GPS telemetry (May 20, 2026) to evaluate real-world transit accessibility, operational reliability, and city-wide performance gaps across three distinct time periods: Morning Peak (08:00-10:00 AM), Midday Off-Peak (12:00-02:00 PM), and Evening Peak (05:00-07:00 PM IST).</p>
+          <ul>
+            <li><strong>GPS Data Ingestion:</strong> Ingested 5.5 GB of raw bus GPS data. Extracted and filtered pings matching the selected period's UTC window. Mapped pings to stops within 100m in O(1) lookup time using a 0.002-degree spatial grid index.</li>
+            <li><strong>Empirical Headways:</strong> Identified discrete bus visits by grouping pings by vehicle ID and time, sorted arrivals chronologically, and calculated observed headway intervals per stop and route.</li>
+            <li><strong>GPS-Empirical PTAL:</strong> Substituted GTFS scheduled headways with observed headways to calculate wait time (<code>SWT = 0.5 * Headway_GPS + 2.0 mins</code>), mapping real-world accessibility grades.</li>
+            <li><strong>GPS-Empirical NHI:</strong> Replaced the theoretical Network Resilience score with two operational sub-scores (each weighted at 10%):
+              <ul>
+                <li><strong>Headway Reliability (S_reliability):</strong> Penalizes service irregularity based on the Coefficient of Variation (<code>CV = std_dev / mean</code>) of stop headways.</li>
+                <li><strong>Travel Speed (S_speed):</strong> Derived dynamically from consecutive ping coordinate displacements and time gaps to measure traffic congestion levels.</li>
+              </ul>
+            </li>
+            <li><strong>Performance Variance Mapping:</strong> Compares scheduled vs. empirical performance on a diverging Red-Gray-Green scale, highlighting service gains (Green) and bottleneck hotspots (Red) in a dedicated comparison view for each selected period.</li>
           </ul>
         </div>
       </div>

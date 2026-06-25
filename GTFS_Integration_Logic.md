@@ -15,14 +15,14 @@ graph TD
         GTFS_MTC["MTC Bus GTFS (routes, trips, frequencies, stop_times)"]
         GTFS_CMRL["CMRL Metro GTFS (routes, trips, stop_times, stops)"]
         
-        PeakFilter["Filter Peak Window: 08:00 - 10:00 AM"]
+        PeakFilter["Filter Period: Morning (8-10h), Midday (12-14h), or Evening (17-19h)"]
         SeqCompute["Reconstruct Stop Sequences & Cumulative Distances"]
         
         GTFS_MTC --> PeakFilter
         GTFS_MTC --> SeqCompute
         GTFS_CMRL --> PeakFilter
         
-        PrecomputedJSON["gtfs_precomputed.json (Peak Headways & Route Distances)"]
+        PrecomputedJSON["gtfs_precomputed_{period}.json (Peak Headways & Route Distances)"]
         PeakFilter --> PrecomputedJSON
         SeqCompute --> PrecomputedJSON
     end
@@ -120,13 +120,13 @@ Processing raw, multi-gigabyte GTFS files on every page refresh is resource-proh
 
 1. **MTC Bus Peak Headways:**
    * Reads raw MTC `frequencies.txt`, `trips.txt`, `stop_times.txt`, and `routes.txt`.
-   * Filters all trips operating within the **morning peak window (08:00 to 10:00)**.
+   * Filters all trips operating within the selected analysis window (Morning Peak: 08:00-10:00, Midday Off-Peak: 12:00-14:00, or Evening Peak: 17:00-19:00 IST).
    * Maps each `stop_id` and its associated `route_short_name` to their exact peak headway in minutes:
      $$\text{Headway (mins)} = \frac{\text{headway\_secs}}{60.0}$$
 
 2. **CMRL Metro Peak Headways:**
    * Ingests CMRL `stop_times.txt` and `trips.txt`.
-   * Filters train arrival times at each station during the peak morning window (08:00 - 10:00).
+   * Filters train arrival times at each station during the active analysis window.
    * Sorts arrivals chronologically and calculates the differences (headways) between consecutive trains.
    * Extracts the **median headway** across all platforms/directions per parent station.
 
@@ -151,8 +151,8 @@ Determines the average time spent waiting for a service to arrive. It is defined
 $$SWT_{j,r} = \left(0.5 \times Headway_{j,r}\right) + ReliabilityMargin_{mode}$$
 
 * **Headway Lookup Logic:**
-  * **MTC Bus:** Exact headway per route and stop from precomputed GTFS schedules. Fallback: **30.0 mins**.
-  * **CMRL Metro:** Median peak headway per parent station from precomputed GTFS schedules. Dashboards nodes are spatially mapped to GTFS parent station coordinates (using a $<250\text{m}$ threshold) to resolve name mismatches (e.g., CMBT). Fallback: **10.0 mins**.
+  * **MTC Bus:** Exact headway per route and stop from precomputed GTFS schedules for the active period. Fallback: **30.0 mins**.
+  * **CMRL Metro:** Median peak headway per parent station from precomputed GTFS schedules for the active period. Dashboards nodes are spatially mapped to GTFS parent station coordinates (using a $<250\text{m}$ threshold) to resolve name mismatches (e.g., CMBT). Fallback: **10.0 mins**.
   * **Suburban Rail:** Since Southern Railway timetables are not public in GTFS, the model applies a standard peak headway default of **20.0 mins** (rather than route-count heuristics).
 * **Reliability Margins:** Add a buffer for real-world delays:
   * Bus: **2.0 minutes**
@@ -228,9 +228,33 @@ Transitioning the pipeline to use empirical schedules from CUMTA GTFS data (MTC 
   * **Grade 5 (Very Good):** 356 stops
   * **Grade 6a (Excellent):** 784 stops
   * **Grade 6b (Excellent):** 624 stops
-* **NHI Health Classification Counts:**
+* **NHI Health Classification Counts (Morning Peak):**
   * **Excellent (90-100):** 101 stops
   * **Good (70-89):** 1,143 stops
   * **Moderate (50-69):** 1,756 stops
   * **Weak (30-49):** 1,085 stops
   * **Critical (0-29):** 60 stops
+
+---
+
+## 6. Multi-Period Temporal Analysis Setup
+
+To support comparing operational differences across transit schedules and raw GPS observed congestion patterns, the pipeline precomputes and builds independent accessibility and network health indices for three separate timeframes:
+
+1. **Morning Peak (08:00 - 10:00 AM IST / 02:30 - 04:30 UTC):**
+   * **GPS Files:** `amnex_direct_data_2026-05-20_06-09.csv` (02:30 - 03:30 UTC) & `amnex_direct_data_2026-05-20_09-12.csv` (03:30 - 04:30 UTC).
+   * **GTFS Bounds:** `08:00:00` to `10:00:00` (28800 to 36000 seconds).
+   * **Outputs:** `bus_stops_connectivity_morning.geojson` & `connectivity_summary_morning.json`.
+
+2. **Midday Off-Peak (12:00 - 02:00 PM IST / 06:30 - 08:30 UTC):**
+   * **GPS Files:** `amnex_direct_data_2026-05-20_12-15.csv` (06:30 - 08:30 UTC).
+   * **GTFS Bounds:** `12:00:00` to `14:00:00` (43200 to 50400 seconds).
+   * **Outputs:** `bus_stops_connectivity_midday.geojson` & `connectivity_summary_midday.json`.
+
+3. **Evening Peak (05:00 - 07:00 PM IST / 11:30 - 13:30 UTC):**
+   * **GPS Files:** `amnex_direct_data_2026-05-20_15-18.csv` (11:30 - 12:30 UTC) & `amnex_direct_data_2026-05-20_18-21.csv` (12:30 - 13:30 UTC).
+   * **GTFS Bounds:** `17:00:00` to `19:00:00` (61200 to 68400 seconds).
+   * **Outputs:** `bus_stops_connectivity_evening.geojson` & `connectivity_summary_evening.json`.
+
+The web frontend dynamically loads the files corresponding to the period toggled by the user, immediately reconstructing map markers, stats panels, and charts.
+

@@ -11,7 +11,17 @@ from shapely.prepared import prep
 from shapely.strtree import STRtree
 
 
-BASE = Path("/Users/bharatoraon/Desktop/Project_1")
+script_dir = Path(__file__).resolve().parent.parent
+if (script_dir / "data").exists():
+    BASE = script_dir
+else:
+    BASE = Path("/Users/bharatoraon/Desktop/Project_1")
+
+if (script_dir / "CUMTA_GTFS").exists():
+    GTFS_BASE = script_dir / "CUMTA_GTFS"
+else:
+    GTFS_BASE = Path("/Users/bharatoraon/Desktop/Project_1/CUMTA_GTFS")
+
 DATA = BASE / "data"
 OUT = BASE / "connectivity_dashboard"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -112,7 +122,7 @@ def get_route_distance(stop_pt, hub_pt, route_name, route_geoms):
     return None
 
 
-def calculate_ptal(stop_id, nodes, stop_routes, tree, all_node_list, gtfs_data=None, metro_to_gtfs=None):
+def calculate_ptal(stop_id, nodes, stop_routes, tree, all_node_list, gtfs_data=None, metro_to_gtfs=None, gps_data=None):
     stop_node = nodes[stop_id]
     stop_geom_m = stop_node["geom_m"]
     route_access_times = {}
@@ -150,7 +160,9 @@ def calculate_ptal(stop_id, nodes, stop_routes, tree, all_node_list, gtfs_data=N
         for r in routes_at_j:
             headway = None
             if mode in ("bus", "terminal", "depot"):
-                if gtfs_data:
+                if gps_data:
+                    headway = gps_data.get("stop_route_metrics", {}).get(nid, {}).get(r, {}).get("mean_headway")
+                if headway is None and gtfs_data:
                     bus_headways = gtfs_data.get("mtc_bus_headways", {})
                     if nid in bus_headways:
                         headway = bus_headways[nid].get(r)
@@ -233,7 +245,7 @@ def get_gtfs_route_distance(stop_id, hub_id, route_name, gtfs_data):
     return None
 
 
-def calculate_nhi(stop_id, nodes, stop_routes, footpaths, route_geoms, closest_hub_id, closest_hub_hops, gtfs_data=None):
+def calculate_nhi(stop_id, nodes, stop_routes, footpaths, route_geoms, closest_hub_id, closest_hub_hops, gtfs_data=None, gps_data=None):
     if closest_hub_id is None or closest_hub_hops == float("inf"):
         s_directness = 0.0
         s_transfer = 0.0
@@ -292,14 +304,40 @@ def calculate_nhi(stop_id, nodes, stop_routes, footpaths, route_geoms, closest_h
             
     s_multimodal = 100.0 if is_multimodal_transfer else 0.0
     
-    routes_count = len(stop_routes.get(stop_id, []))
-    if routes_count <= 1:
-        s_resilience = 0.0
+    if gps_data:
+        # Calculate GPS-empirical reliability and speed scores
+        stop_r = stop_routes.get(stop_id, [])
+        cvs = []
+        speeds = []
+        metrics = gps_data.get("stop_route_metrics", {}).get(stop_id, {})
+        for r in stop_r:
+            m = metrics.get(r)
+            if m:
+                cvs.append(m["cv_headway"])
+                speeds.append(m["avg_speed"])
+                
+        if cvs:
+            avg_cv = sum(cvs) / len(cvs)
+            s_reliability = max(0.0, 100.0 * (1.0 - avg_cv))
+        else:
+            s_reliability = 70.0
+            
+        if speeds:
+            avg_speed = sum(speeds) / len(speeds)
+            s_speed = max(30.0, min(100.0, 30.0 + 70.0 * (avg_speed - 10.0) / 15.0))
+        else:
+            s_speed = 70.0
+            
+        nhi = 0.3 * s_directness + 0.3 * s_transfer + 0.2 * s_multimodal + 0.1 * s_reliability + 0.1 * s_speed
     else:
-        import math
-        s_resilience = 100.0 * (1.0 - math.exp(-0.3 * (routes_count - 1)))
+        routes_count = len(stop_routes.get(stop_id, []))
+        if routes_count <= 1:
+            s_resilience = 0.0
+        else:
+            import math
+            s_resilience = 100.0 * (1.0 - math.exp(-0.3 * (routes_count - 1)))
+        nhi = 0.3 * s_directness + 0.3 * s_transfer + 0.2 * s_multimodal + 0.2 * s_resilience
         
-    nhi = 0.3 * s_directness + 0.3 * s_transfer + 0.2 * s_multimodal + 0.2 * s_resilience
     return round(nhi, 1)
 
 
@@ -385,17 +423,36 @@ def run_raptor(nodes, routes, stop_routes, target_nodes, footpaths, allowed_rout
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Build connectivity metrics for Chennai transit network.")
+    parser.add_argument("--period", type=str, default="morning", choices=["morning", "midday", "evening"], help="Time period to build")
+    args = parser.parse_args()
+    
+    period = args.period
+    print(f"Building connectivity metrics for period: {period}", flush=True)
+    
     stop_routes = defaultdict(set)
     print("Loading boundaries and source layers...", flush=True)
     
     # Load precomputed GTFS schedules and distances
     gtfs_data = None
     try:
-        with open(OUT / "gtfs_precomputed.json", "r", encoding="utf-8") as f:
+        gtfs_file = OUT / f"gtfs_precomputed_{period}.json"
+        with open(gtfs_file, "r", encoding="utf-8") as f:
             gtfs_data = json.load(f)
-        print("Loaded precomputed GTFS schedules and route distances successfully.", flush=True)
+        print(f"Loaded precomputed GTFS schedules and route distances from {gtfs_file.name} successfully.", flush=True)
     except Exception as e:
-        print(f"Warning: Failed to load gtfs_precomputed.json, falling back to heuristics: {e}", flush=True)
+        print(f"Warning: Failed to load gtfs_precomputed_{period}.json: {e}", flush=True)
+
+    # Load precomputed GPS metrics
+    gps_data = None
+    try:
+        gps_file = OUT / f"gps_precomputed_{period}.json"
+        with open(gps_file, "r", encoding="utf-8") as f:
+            gps_data = json.load(f)
+        print(f"Loaded precomputed GPS metrics from {gps_file.name} successfully.", flush=True)
+    except Exception as e:
+        print(f"Warning: Failed to load gps_precomputed_{period}.json: {e}", flush=True)
 
     cma = gpd.read_file(DATA / "CMA.geojson").to_crs(CRS_WGS84)
     cma_union = cma.geometry.union_all()
@@ -903,7 +960,7 @@ def main():
     cmrl_parent_stops_geom_m = {}
     try:
         import csv
-        with open(BASE / "CUMTA_GTFS" / "CMRL" / "stops.txt", "r", encoding="utf-8") as f:
+        with open(GTFS_BASE / "CMRL" / "stops.txt", "r", encoding="utf-8") as f:
             reader = csv.DictReader(f, skipinitialspace=True)
             for row in reader:
                 if row.get("location_type") == "1":
@@ -988,6 +1045,9 @@ def main():
         # Calculate PTAL index and grade
         ptal_index, ptal_grade = calculate_ptal(sid, nodes, stop_routes, tree, all_node_list, gtfs_data, metro_to_gtfs)
         
+        # Calculate PTAL index and grade (GPS-Empirical)
+        ptal_gps_index, ptal_gps_grade = calculate_ptal(sid, nodes, stop_routes, tree, all_node_list, gtfs_data, metro_to_gtfs, gps_data=gps_data)
+        
         # Calculate Network Health Index (NHI) score
         nhi_score = calculate_nhi(
             stop_id=sid,
@@ -998,6 +1058,19 @@ def main():
             closest_hub_id=closest_hub_id,
             closest_hub_hops=closest_hub_hops,
             gtfs_data=gtfs_data
+        )
+
+        # Calculate Network Health Index (NHI) score (GPS-Empirical)
+        nhi_gps_score = calculate_nhi(
+            stop_id=sid,
+            nodes=nodes,
+            stop_routes=stop_routes,
+            footpaths=footpaths,
+            route_geoms=route_geoms,
+            closest_hub_id=closest_hub_id,
+            closest_hub_hops=closest_hub_hops,
+            gtfs_data=gtfs_data,
+            gps_data=gps_data
         )
 
         # Calculate stop-level headway stats to save in properties
@@ -1052,6 +1125,9 @@ def main():
                 "ptal_index": ptal_index,
                 "ptal_grade": ptal_grade,
                 "nhi_score": nhi_score,
+                "ptal_gps_index": ptal_gps_index,
+                "ptal_gps_grade": ptal_gps_grade,
+                "nhi_gps_score": nhi_gps_score,
                 "avg_peak_headway": avg_headway,
                 "min_peak_headway": min_headway,
             }
@@ -1115,6 +1191,35 @@ def main():
             else:
                 nhi_bins["Critical (0-29)"] += 1
 
+    # PTAL and NHI calculations (GPS-Empirical)
+    cma_stops_with_ptal_gps = [p["ptal_gps_index"] for p in cma_stops if p["ptal_gps_index"] is not None]
+    cma_stops_with_nhi_gps = [p["nhi_gps_score"] for p in cma_stops if p["nhi_gps_score"] is not None]
+    mean_ptal_gps = round(sum(cma_stops_with_ptal_gps) / len(cma_stops_with_ptal_gps), 2) if cma_stops_with_ptal_gps else 0.0
+    mean_nhi_gps = round(sum(cma_stops_with_nhi_gps) / len(cma_stops_with_nhi_gps), 1) if cma_stops_with_nhi_gps else 0.0
+
+    ptal_gps_grade_counts = Counter(p["ptal_gps_grade"] for p in cma_stops)
+    
+    nhi_gps_bins = {
+        "Excellent (90-100)": 0,
+        "Good (70-89)": 0,
+        "Moderate (50-69)": 0,
+        "Weak (30-49)": 0,
+        "Critical (0-29)": 0
+    }
+    for p in cma_stops:
+        score = p["nhi_gps_score"]
+        if score is not None:
+            if score >= 90:
+                nhi_gps_bins["Excellent (90-100)"] += 1
+            elif score >= 70:
+                nhi_gps_bins["Good (70-89)"] += 1
+            elif score >= 50:
+                nhi_gps_bins["Moderate (50-69)"] += 1
+            elif score >= 30:
+                nhi_gps_bins["Weak (30-49)"] += 1
+            else:
+                nhi_gps_bins["Critical (0-29)"] += 1
+
     summary = {
         "generated_from": str(DATA),
         "method": {
@@ -1138,6 +1243,10 @@ def main():
         "nhi_average": mean_nhi,
         "ptal_grade_counts": dict(ptal_grade_counts),
         "nhi_score_counts": nhi_bins,
+        "ptal_gps_average": mean_ptal_gps,
+        "nhi_gps_average": mean_nhi_gps,
+        "ptal_gps_grade_counts": dict(ptal_gps_grade_counts),
+        "nhi_gps_score_counts": nhi_gps_bins,
     }
 
     # Enrich metro station features with precomputed headway stats
@@ -1158,10 +1267,23 @@ def main():
             ft["properties"]["min_peak_headway"] = min_h
 
     print("Writing enriched geospatial outputs to dashboard folder...", flush=True)
-    write_geojson("bus_stops_connectivity.geojson", [s for s in enriched_stops if s["properties"]["inside_cma"]])
+    # Period-specific outputs
+    write_geojson(f"bus_stops_connectivity_{period}.geojson", [s for s in enriched_stops if s["properties"]["inside_cma"]])
+    write_geojson(f"metro_stations_enriched_{period}.geojson", metro_station_features)
+    with open(OUT / f"connectivity_summary_{period}.json", "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, ensure_ascii=False)
+    print(f"Period-specific outputs written: bus_stops_connectivity_{period}.geojson, metro_stations_enriched_{period}.geojson, connectivity_summary_{period}.json", flush=True)
+
+    # For compatibility/default, save as normal names if it's the morning peak
+    if period == "morning":
+        write_geojson("bus_stops_connectivity.geojson", [s for s in enriched_stops if s["properties"]["inside_cma"]])
+        write_geojson("metro_stations_enriched.geojson", metro_station_features)
+        with open(OUT / "connectivity_summary.json", "w", encoding="utf-8") as f:
+            json.dump(summary, f, indent=2, ensure_ascii=False)
+        print("Default files saved (morning peak).", flush=True)
+
     write_geojson("bus_routes_enriched.geojson", enriched_routes)
     write_geojson("bus_facilities_enriched.geojson", [f for f in facilities if f["properties"]["inside_cma"]])
-    write_geojson("metro_stations_enriched.geojson", metro_station_features)
     write_geojson("suburban_stations_enriched.geojson", suburban_station_features)
 
     # Copy CMA.geojson
@@ -1183,9 +1305,6 @@ def main():
                 clipped_features.append(feature(clipped_geom, ft.get("properties", {})))
         
         write_geojson(name, {"type": "FeatureCollection", "features": clipped_features})
-
-    with open(OUT / "connectivity_summary.json", "w", encoding="utf-8") as f:
-        json.dump(summary, f, indent=2, ensure_ascii=False)
 
     print(json.dumps(summary, indent=2))
     print("ETL complete. Outputs written to", OUT)

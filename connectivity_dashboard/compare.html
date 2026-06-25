@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CMA Transit Performance Comparison Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --panel: #ffffff;
+      --soft: #f8fafc;
+      --much-better: #16a34a;
+      --better: #22c55e;
+      --on-schedule: #94a3b8;
+      --worse: #f43f5e;
+      --much-worse: #e11d48;
+      --bus: #f97316;
+      --metro-blue: #2563eb;
+      --metro-green: #16a34a;
+      --suburban: #7c2d12;
+      --terminal: #d97706;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--soft);
+      letter-spacing: -0.01em;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(360px, 400px) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    main {
+      position: relative;
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.3;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    /* Segments Control Styles */
+    .dashboard-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .dashboard-nav span {
+      color: var(--muted);
+    }
+    .dashboard-nav a {
+      color: var(--ink);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s ease;
+    }
+    .dashboard-nav a:hover {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .kpi {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.15s ease;
+    }
+    .kpi:hover {
+      border-color: #cbd5e1;
+    }
+
+    .kpi.full-width {
+      grid-column: span 2;
+    }
+
+    .kpi strong {
+      display: block;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+
+    .kpi span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.35;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .kpi.worse-kpi {
+      border-left: 3px solid var(--worse);
+    }
+    .kpi.better-kpi {
+      border-left: 3px solid var(--better);
+    }
+
+    .section {
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .05em;
+    }
+
+    .control {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    select, input[type="text"] {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: var(--panel);
+      color: var(--ink);
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 500;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    select:focus, input[type="text"]:focus {
+      border-color: var(--ink);
+    }
+
+    .bar-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 90px 1fr 40px;
+      align-items: center;
+      gap: 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .bar-label {
+      color: var(--muted);
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .bar-outer {
+      background: #f1f5f9;
+      height: 6px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-inner {
+      height: 100%;
+      border-radius: 4px;
+    }
+
+    .bar-val {
+      color: var(--ink);
+      text-align: right;
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    /* Leaflet Overrides */
+    #map {
+      width: 100%;
+      height: 100%;
+      background: #f1f5f9;
+    }
+
+    .map-tools {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 320px;
+    }
+
+    .pill {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .map-basemap-control {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .map-basemap-control select {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 2px 6px;
+      background: #ffffff;
+      color: var(--ink);
+      font-size: 11px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .legend {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      width: 240px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      font-size: 11.5px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .legend-title {
+      font-weight: 700;
+      font-size: 11.5px;
+      color: var(--ink);
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      margin-bottom: 2px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-weight: 550;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: none;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    /* Custom Leaflet Tooltip Styles */
+    .leaflet-tooltip {
+      background: #ffffff !important;
+      color: var(--ink) !important;
+      border: 1px solid #cbd5e1 !important;
+      border-radius: 6px !important;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important;
+      font-size: 11px !important;
+      padding: 6px 10px !important;
+      white-space: normal !important;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: #ffffff !important;
+      color: var(--ink) !important;
+      border-radius: 8px !important;
+      border: 1px solid #cbd5e1 !important;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .leaflet-popup-tip {
+      background: #ffffff !important;
+    }
+
+    .popup-title {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--ink);
+      margin-bottom: 6px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+    }
+
+    .popup-grid {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 4px 8px;
+      font-size: 11px;
+    }
+
+    .popup-grid span:nth-child(odd) {
+      color: var(--muted);
+      font-weight: 550;
+    }
+    
+    .popup-grid span:nth-child(even) {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    /* Custom scrollbar for sidebar */
+    aside::-webkit-scrollbar {
+      width: 6px;
+    }
+    aside::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    aside::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 999px;
+    }
+
+    /* Service Bottlenecks styles */
+    .bottlenecks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .bottleneck-item {
+      border: none;
+      border-bottom: 1px solid #f1f5f9;
+      background: transparent;
+      padding: 10px 0;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .bottleneck-item:hover {
+      background: #f8fafc;
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+    .bottleneck-name {
+      font-weight: 500;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+    }
+    .bottleneck-val {
+      font-weight: 600;
+      color: #e11d48;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    /* Custom Leaflet Zoom overrides */
+    .leaflet-bar {
+      border: 1px solid #cbd5e1 !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+      border-radius: 6px !important;
+      overflow: hidden;
+    }
+    .leaflet-bar a {
+      background-color: #ffffff !important;
+      color: var(--muted) !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    .leaflet-bar a:hover {
+      background-color: #f8fafc !important;
+      color: var(--ink) !important;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 50vh auto;
+      }
+      aside {
+        grid-row: 2;
+        height: auto;
+        border-right: 0;
+      }
+      main {
+        grid-row: 1;
+        min-height: 50vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="dashboard-nav">
+        <span>Performance Tracker</span>
+        <a href="index.html">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 12px; height: 12px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
+          Back to Core Map
+        </a>
+      </div>
+
+      <div>
+        <h1>Transit Performance Gap</h1>
+        <p class="subtitle" id="periodSubtitle">Comparing schedule timetables against raw GPS observed operations (08:00 - 10:00 AM IST).</p>
+      </div>
+
+      <!-- Time Period Selector -->
+      <div class="control" style="margin-bottom: 12px;">
+        <label for="periodSelect">Analysis Time Period</label>
+        <select id="periodSelect" onchange="switchPeriod(this.value)">
+          <option value="morning" selected>Morning Peak (08:00 - 10:00 AM)</option>
+          <option value="midday">Midday Off-Peak (12:00 - 02:00 PM)</option>
+          <option value="evening">Evening Peak (05:00 - 07:00 PM)</option>
+        </select>
+      </div>
+
+      <!-- Metric Selector -->
+      <div class="control" style="margin-bottom: 0;">
+        <label for="metricSelect">Compare Variance Layer</label>
+        <select id="metricSelect" onchange="switchMetric(this.value)">
+          <option value="ptal_variance" selected>PTAL Accessibility Delta (Observed - Timetabled)</option>
+          <option value="nhi_variance">Network Health Delta (Observed - Timetabled)</option>
+        </select>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpis">
+        <div class="kpi full-width">
+          <strong id="kpiAvgGap">-</strong>
+          <span id="kpiAvgGapLabel">Average Performance Variance</span>
+        </div>
+        <div class="kpi better-kpi">
+          <strong id="kpiBetterCount">-</strong>
+          <span id="kpiBetterLabel">Better Than Scheduled</span>
+        </div>
+        <div class="kpi worse-kpi">
+          <strong id="kpiWorseCount">-</strong>
+          <span id="kpiWorseLabel">Worse Than Scheduled</span>
+        </div>
+      </div>
+
+      <!-- Filter Controls -->
+      <div class="section">
+        <h2>Locate Stops</h2>
+        <div class="control">
+          <input type="text" id="stopSearch" placeholder="Search bus stops by name..." oninput="filterStopsList()">
+        </div>
+      </div>
+
+      <!-- Variance Breakdown -->
+      <div class="section" id="breakdownSection">
+        <h2 id="breakdownTitle">Performance Gap Bins</h2>
+        <div id="varianceBars" class="bar-list"></div>
+      </div>
+
+      <!-- Transit Bottlenecks -->
+      <div class="section" id="bottlenecksSection">
+        <h2>Top 5 Service Bottlenecks</h2>
+        <div id="bottlenecksList" class="bottlenecks-list"></div>
+      </div>
+    </aside>
+
+    <main>
+      <div id="map"></div>
+      <div class="map-tools">
+        <div class="pill" id="statusPill">Loading comparison datasets...</div>
+        <div class="pill">CMA Boundary: Active Clip</div>
+      </div>
+      <div class="map-basemap-control">
+        <label for="basemapSelectMap">Basemap</label>
+        <select id="basemapSelectMap">
+          <option value="osm">OpenStreetMap</option>
+          <option value="cartoLight">Light Canvas</option>
+          <option value="cartoDark" selected>Dark Canvas</option>
+          <option value="topo">Topographic</option>
+          <option value="imagery">Satellite</option>
+        </select>
+      </div>
+      <div class="legend" id="legend"></div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const files = {
+      summary: "connectivity_summary.json",
+      cma: "CMA.geojson",
+      stops: "bus_stops_connectivity.geojson"
+    };
+
+    const deltaColours = {
+      "much-better": "#15803d",  // Deep Green
+      "better": "#16a34a",       // Light Green
+      "on-schedule": "#94a3b8",  // Gray
+      "worse": "#ef4444",        // Light Red
+      "much-worse": "#991b1b"    // Deep Red
+    };
+
+    const basemaps = {
+      osm: {
+        url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        options: { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }
+      },
+      cartoLight: {
+        url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        options: { maxZoom: 20, attribution: "&copy; OpenStreetMap &copy; CARTO" }
+      },
+      cartoDark: {
+        url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        options: { maxZoom: 20, attribution: "&copy; OpenStreetMap &copy; CARTO" }
+      },
+      topo: {
+        url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        options: { maxZoom: 17, attribution: "OpenTopoMap" }
+      },
+      imagery: {
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        options: { maxZoom: 19, attribution: "ArcGIS Imagery" }
+      }
+    };
+
+    const map = L.map("map", { zoomControl: false, preferCanvas: true }).setView([13.08, 80.22], 11);
+    L.control.zoom({ position: "bottomleft" }).addTo(map);
+    let activeBasemap = L.tileLayer(basemaps.cartoLight.url, basemaps.cartoLight.options).addTo(map);
+
+    const layers = {};
+    const stopLayersMap = {};
+    let data = {};
+    let activeMetric = "ptal_variance"; // 'ptal_variance', 'nhi_variance'
+    let stopSearchQuery = "";
+
+    function loadJSON(path) {
+      return fetch(path + "?t=" + Date.now()).then(response => {
+        if (!response.ok) throw new Error(`Failed to load ${path}`);
+        return response.json();
+      });
+    }
+
+    function getVarianceBin(props) {
+      if (activeMetric === "ptal_variance") {
+        const delta = (props.ptal_gps_index || 0) - (props.ptal_index || 0);
+        if (delta >= 5.0) return "much-better";
+        if (delta >= 1.5) return "better";
+        if (delta > -1.5) return "on-schedule";
+        if (delta > -5.0) return "worse";
+        return "much-worse";
+      } else {
+        const delta = (props.nhi_gps_score || 0) - (props.nhi_score || 0);
+        if (delta >= 10.0) return "much-better";
+        if (delta >= 3.0) return "better";
+        if (delta > -3.0) return "on-schedule";
+        if (delta > -10.0) return "worse";
+        return "much-worse";
+      }
+    }
+
+    function stopColour(props) {
+      return deltaColours[getVarianceBin(props)] || "#64748b";
+    }
+
+    function stopVisible(props) {
+      if (!props.inside_cma) return false;
+      if (!stopSearchQuery) return true;
+      const name = (props["Stop Name"] || props["Name"] || "").toLowerCase();
+      return name.includes(stopSearchQuery);
+    }
+
+    function switchMetric(metric) {
+      activeMetric = metric;
+      updateLegend();
+      updateMetricPanel();
+      redrawOperationalLayers();
+    }
+
+    function updateLegend() {
+      const el = document.getElementById("legend");
+      if (activeMetric === "ptal_variance") {
+        el.innerHTML = `
+          <div class="legend-title">PTAL Index Variance</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["much-better"]}"></span>&ge; +5.0 (Much Better)</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["better"]}"></span>+1.5 to +5.0 (Better)</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["on-schedule"]}"></span>-1.5 to +1.5 (On Timetable)</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["worse"]}"></span>-5.0 to -1.5 (Worse)</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["much-worse"]}"></span>&le; -5.0 (Much Worse)</div>
+        `;
+      } else {
+        el.innerHTML = `
+          <div class="legend-title">Network Health Delta</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["much-better"]}"></span>&ge; +10% (Much Better)</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["better"]}"></span>+3% to +10% (Better)</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["on-schedule"]}"></span>-3% to +3% (No Variance)</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["worse"]}"></span>-10% to -3% (Worse)</div>
+          <div class="legend-row"><span class="swatch" style="background:${deltaColours["much-worse"]}"></span>&le; -10% (Much Worse)</div>
+        `;
+      }
+    }
+
+    function updateMetricPanel() {
+      if (!data.stops || !data.stops.features) return;
+      const cmaStops = data.stops.features.filter(f => f.properties.inside_cma).map(f => f.properties);
+      
+      let sumDelta = 0;
+      let countValids = 0;
+      let betterCount = 0;
+      let worseCount = 0;
+      let onScheduleCount = 0;
+      
+      const bins = {
+        "much-better": 0,
+        "better": 0,
+        "on-schedule": 0,
+        "worse": 0,
+        "much-worse": 0
+      };
+
+      cmaStops.forEach(p => {
+        let delta = 0;
+        let valid = false;
+        if (activeMetric === "ptal_variance") {
+          delta = (p.ptal_gps_index || 0) - (p.ptal_index || 0);
+          if (p.ptal_index !== undefined && p.ptal_gps_index !== undefined) {
+            sumDelta += delta;
+            countValids++;
+            valid = true;
+          }
+        } else {
+          delta = (p.nhi_gps_score || 0) - (p.nhi_score || 0);
+          if (p.nhi_score !== undefined && p.nhi_gps_score !== undefined) {
+            sumDelta += delta;
+            countValids++;
+            valid = true;
+          }
+        }
+        p._tempDelta = valid ? delta : 0;
+        p._tempValid = valid;
+
+        const bin = getVarianceBin(p);
+        bins[bin]++;
+
+        if (bin === "much-better" || bin === "better") {
+          betterCount++;
+        } else if (bin === "much-worse" || bin === "worse") {
+          worseCount++;
+        } else {
+          onScheduleCount++;
+        }
+      });
+
+      const avgDelta = countValids > 0 ? (sumDelta / countValids) : 0;
+      const totalStops = cmaStops.length;
+
+      // Update KPIs
+      if (activeMetric === "ptal_variance") {
+        document.getElementById("kpiAvgGap").textContent = (avgDelta >= 0 ? "+" : "") + avgDelta.toFixed(2);
+        document.getElementById("kpiAvgGapLabel").textContent = "Average PTAL Index Gap";
+      } else {
+        document.getElementById("kpiAvgGap").textContent = (avgDelta >= 0 ? "+" : "") + avgDelta.toFixed(1) + "%";
+        document.getElementById("kpiAvgGapLabel").textContent = "Average Network Health Gap";
+      }
+
+      document.getElementById("kpiBetterCount").textContent = betterCount;
+      document.getElementById("kpiBetterLabel").textContent = `Better (${(betterCount / totalStops * 100).toFixed(1)}%)`;
+
+      document.getElementById("kpiWorseCount").textContent = worseCount;
+      document.getElementById("kpiWorseLabel").textContent = `Worse (${(worseCount / totalStops * 100).toFixed(1)}%)`;
+
+      // Draw bars
+      const outerBars = document.getElementById("varianceBars");
+      outerBars.innerHTML = "";
+      
+      const order = ["much-better", "better", "on-schedule", "worse", "much-worse"];
+      const labels = {
+        "much-better": "Much Better",
+        "better": "Better",
+        "on-schedule": "On Schedule",
+        "worse": "Worse",
+        "much-worse": "Much Worse"
+      };
+
+      order.forEach(key => {
+        const count = bins[key] || 0;
+        const pct = totalStops > 0 ? (count / totalStops * 100) : 0;
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        row.innerHTML = `
+          <div class="bar-label">${labels[key]}</div>
+          <div class="bar-outer">
+            <div class="bar-inner" style="width: ${pct}%; background: ${deltaColours[key]}"></div>
+          </div>
+          <div class="bar-val">${count}</div>
+        `;
+        outerBars.appendChild(row);
+      });
+
+      // Update Top 5 Service Bottlenecks
+      const bottlenecks = cmaStops
+        .filter(p => p._tempValid && p._tempDelta < 0)
+        .sort((a, b) => a._tempDelta - b._tempDelta) // most negative first
+        .slice(0, 5);
+
+      const bottleneckEl = document.getElementById("bottlenecksList");
+      bottleneckEl.innerHTML = "";
+      
+      if (bottlenecks.length === 0) {
+        bottleneckEl.innerHTML = `<div style="font-size: 11.5px; color: var(--muted); text-align: center; padding: 8px;">No bottlenecks detected (all services on schedule).</div>`;
+      } else {
+        bottlenecks.forEach(p => {
+          const row = document.createElement("div");
+          row.className = "bottleneck-item";
+          const formattedDelta = (activeMetric === "ptal_variance" ? "" : "") + p._tempDelta.toFixed(activeMetric === "ptal_variance" ? 2 : 1) + (activeMetric === "ptal_variance" ? "" : "%");
+          row.innerHTML = `
+            <div class="bottleneck-name" title="${p["Stop Name"] || 'Bus stop'}">${p["Stop Name"] || 'Bus stop'}</div>
+            <div class="bottleneck-val">${formattedDelta}</div>
+          `;
+          row.onclick = () => focusStop(p["Stop Id"]);
+          bottleneckEl.appendChild(row);
+        });
+      }
+    }
+
+    function focusStop(stopId) {
+      const layer = stopLayersMap[stopId];
+      if (layer) {
+        map.setView(layer.getLatLng(), 15);
+        layer.openPopup();
+      }
+    }
+
+    function popupGrid(title, items) {
+      let grid = `<div class="popup-title">${title}</div><div class="popup-grid">`;
+      items.forEach(row => {
+        grid += `<span>${row[0]}</span><span>${row[1]}</span>`;
+      });
+      grid += `</div>`;
+      return grid;
+    }
+
+    function buildStaticLayers() {
+      // 1. CMA Boundary
+      layers.cma = L.geoJSON(data.cma, {
+        style: { color: "#64748b", weight: 2.5, fillOpacity: 0.0, dashArray: "5 5" }
+      }).addTo(map);
+
+      // 2. Bus Stops (Variance dots)
+      buildStopsLayer();
+
+      // Fit map to CMA boundary
+      if (layers.cma) {
+        map.fitBounds(layers.cma.getBounds(), { padding: [20, 20] });
+      }
+    }
+
+    function redrawOperationalLayers() {
+      if (layers.stops) {
+        map.removeLayer(layers.stops);
+      }
+      buildStopsLayer();
+    }
+
+    function buildStopsLayer() {
+      // Clear previous map layers mapping
+      for (const k in stopLayersMap) delete stopLayersMap[k];
+
+      layers.stops = L.geoJSON(data.stops, {
+        filter: f => stopVisible(f.properties),
+        pointToLayer: (f, latlng) => {
+          const colour = stopColour(f.properties);
+          return L.circleMarker(latlng, {
+            radius: 5.5,
+            fillColor: colour,
+            color: "#ffffff",
+            weight: 1,
+            fillOpacity: 0.95
+          });
+        },
+        onEachFeature: (f, layer) => {
+          const p = f.properties;
+          const stopId = p["Stop Id"];
+          if (stopId) {
+            stopLayersMap[stopId] = layer;
+          }
+
+          const ptalDelta = (p.ptal_gps_index || 0) - (p.ptal_index || 0);
+          const nhiDelta = (p.nhi_gps_score || 0) - (p.nhi_score || 0);
+
+          layer.bindPopup(popupGrid(p["Stop Name"] || "Bus stop", [
+            ["Routes Served", Array.isArray(p.routes_clean) ? p.routes_clean.slice(0, 10).join(", ") : "-"],
+            ["Scheduled PTAL", p.ptal_index !== undefined ? `Grade ${p.ptal_grade} (${p.ptal_index})` : "-"],
+            ["GPS-Empirical PTAL", p.ptal_gps_index !== undefined ? `Grade ${p.ptal_gps_grade} (${p.ptal_gps_index})` : "-"],
+            ["PTAL Gap", (ptalDelta >= 0 ? "+" : "") + ptalDelta.toFixed(2)],
+            ["Scheduled Health", p.nhi_score !== undefined ? `${p.nhi_score}/100` : "-"],
+            ["GPS-Empirical Health", p.nhi_gps_score !== undefined ? `${p.nhi_gps_score}/100` : "-"],
+            ["Health Gap", (nhiDelta >= 0 ? "+" : "") + nhiDelta.toFixed(1) + "%"]
+          ]));
+
+          // Setup Hover Tooltip
+          let deltaHtml = "";
+          if (activeMetric === "ptal_variance") {
+            deltaHtml = `Timetable: Grade ${p.ptal_grade} (${p.ptal_index})
+                        <br/>Observed: Grade ${p.ptal_gps_grade} (${p.ptal_gps_index})
+                        <br/><strong>Variance: ${(ptalDelta >= 0 ? "+" : "") + ptalDelta.toFixed(2)}</strong>`;
+          } else {
+            deltaHtml = `Timetable Health: ${p.nhi_score}/100
+                        <br/>Observed Health: ${p.nhi_gps_score}/100
+                        <br/><strong>Variance: ${(nhiDelta >= 0 ? "+" : "") + nhiDelta.toFixed(1)}%</strong>`;
+          }
+
+          layer.bindTooltip(`<div style="font-family: inherit; font-size: 11px; padding: 2px;">
+            <strong style="color: #0f172a;">${p["Stop Name"] || "Bus stop"}</strong>
+            <br/><span style="color: #475569; font-size: 10px;">${deltaHtml}</span>
+          </div>`, { direction: "top", offset: [0, -5], opacity: 0.95 });
+        }
+      }).addTo(map);
+    }
+
+    function filterStopsList() {
+      stopSearchQuery = document.getElementById("stopSearch").value.toLowerCase();
+      redrawOperationalLayers();
+    }
+
+    function setBasemap(key) {
+      if (activeBasemap) {
+        map.removeLayer(activeBasemap);
+      }
+      const b = basemaps[key];
+      if (b) {
+        activeBasemap = L.tileLayer(b.url, b.options).addTo(map);
+      }
+    }
+
+    function bindControls() {
+      document.getElementById("basemapSelectMap").addEventListener("change", event => {
+        setBasemap(event.target.value);
+      });
+    }
+
+    function switchPeriod(period) {
+      document.getElementById("statusPill").textContent = `Loading data for ${period === 'morning' ? 'Morning Peak' : period === 'midday' ? 'Midday Off-Peak' : 'Evening Peak'}...`;
+      
+      const periodFiles = {
+        summary: `connectivity_summary_${period}.json`,
+        stops: `bus_stops_connectivity_${period}.geojson`
+      };
+      
+      Promise.all(Object.entries(periodFiles).map(([key, path]) => loadJSON(path).then(json => [key, json])))
+        .then(entries => {
+          entries.forEach(([key, json]) => {
+            data[key] = json;
+          });
+          
+          // Update subtitle
+          const subtitles = {
+            morning: "Comparing schedule timetables against raw GPS observed operations (08:00 - 10:00 AM IST).",
+            midday: "Comparing schedule timetables against raw GPS observed operations (12:00 - 02:00 PM IST).",
+            evening: "Comparing schedule timetables against raw GPS observed operations (05:00 - 07:00 PM IST)."
+          };
+          document.getElementById("periodSubtitle").textContent = subtitles[period];
+          
+          updateMetricPanel();
+          redrawOperationalLayers();
+          
+          document.getElementById("statusPill").textContent = `${period === 'morning' ? 'Morning Peak' : period === 'midday' ? 'Midday Off-Peak' : 'Evening Peak'} loaded`;
+        })
+        .catch(error => {
+          document.getElementById("statusPill").textContent = `Error loading period: ${error.message}`;
+          console.error(error);
+        });
+    }
+
+    // Load datasets
+    Promise.all(Object.entries(files).map(([key, path]) => loadJSON(path).then(json => [key, json])))
+      .then(entries => {
+        data = Object.fromEntries(entries);
+        
+        document.getElementById("statusPill").textContent = "Comparison layers active";
+        updateLegend();
+        updateMetricPanel();
+        buildStaticLayers();
+        bindControls();
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById("statusPill").textContent = "Error loading layers";
+      });
+  </script>
+</body>
+</html>

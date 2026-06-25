@@ -18,3 +18,5 @@ env/
 *.njsproj
 *.sln
 *.swp
+# Large datasets
+Bus_GPS_Data/

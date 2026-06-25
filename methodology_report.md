@@ -272,3 +272,44 @@ Measures protection against single-line failures through route redundancy:
 $$S_{resilience} = 100 \times \left(1 - e^{-0.3 \times \left(RoutesCount_i - 1\right)}\right)$$
 For stops served by only 1 route, the resilience score is 0.
 
+---
+
+## 8. GPS-Empirical Operations & Performance Gap Analysis
+
+While theoretical models are useful baseline indicators of structural transit access, actual commuter wait times and service reliability vary under real-world traffic conditions. To bridge this gap, the pipeline integrates raw GPS telemetry logs of the MTC bus fleet (May 20, 2026 morning peak hour 08:00 - 10:00 AM IST) representing over 5.5 GB of raw operations data.
+
+### 8.1 High-Performance Spatial Indexing
+Mapping 560,000+ raw GPS coordinate pings to the 4,145 transit stop points presents a computational bottleneck ($O(N \times M)$ search time). We resolved this by partitioning the transit stops into a spatial grid cell index of 0.002-degree bins. Each GPS ping is queried against only the corresponding and adjacent grid cells, reducing mapping lookups to a near constant $O(1)$ search time. Pings were successfully filtered and matched to served stops within a 100-meter threshold in under 60 seconds.
+
+### 8.2 Travel Speed Reconstruction
+Since the raw speed data attributes were empty in the source telemetry datasets, average bus travel speeds were reconstructed dynamically. The algorithm calculates coordinate displacements ($\Delta x, \Delta y$) using chronological coordinate timestamps ($\Delta t$) between consecutive pings for each unique vehicle ID, establishing real-world speeds along the transit routes.
+
+### 8.3 GPS-Empirical PTAL Accessibility
+Standard scheduled headways were replaced with GPS-observed headways (calculated as chronological gaps between consecutive arrivals at each stop). Real wait times were then computed as $SWT = (0.5 \times Headway_{GPS}) + 2.0\text{ mins}$ (including a 2.0-minute bus reliability margin), which were fed directly into the London PTAL Accessibility Index formula to visualize actual door-to-door accessibility levels.
+
+### 8.4 GPS-Empirical Network Health (NHI)
+The operational Network Health Index (NHI) was upgraded by replacing the static "Network Resilience" score (20%) with two dynamic real-time performance attributes, weighted at 10% each:
+* **Headway Reliability ($S_{reliability}$):
+  Evaluates headway consistency based on the Coefficient of Variation ($CV = \sigma / \mu$) of stop headways. Stops with high irregularity (e.g. bus bunching where $CV > 1.0$) are heavily penalized.
+* **Travel Speed ($S_{speed}$):
+  Scores stops based on average observed travel speeds, directly incorporating traffic congestion penalties into the transit quality index.
+
+$$NHI_{GPS} = 0.3 \times S_{directness} + 0.3 \times S_{transfer} + 0.2 \times S_{multimodal} + 0.1 \times S_{reliability} + 0.1 \times S_{speed}$$
+
+### 8.5 Performance Gap Mapping (Diverging Delta Layers)
+To identify where Chennai's transit network fails to meet timetables, we developed a dedicated variance mapping module (`compare.html`). For each stop, the dashboard computes the performance gap:
+$$\Delta PTAL = PTAL_{GPS} - PTAL_{Sch}$$
+$$\Delta NHI = NHI_{GPS} - NHI_{Sch}$$
+
+These deltas are visual-mapped using a diverging Red-Gray-Green color scale to allow planners to instantly target operational bottlenecks (Red) and transit gains (Green) across the metropolitan region.
+
+### 8.6 Multi-Period Temporal Comparative Analysis
+To examine transit operations across different travel conditions, the analysis has been extended to support three distinct time periods:
+1. **Morning Peak (08:00 - 10:00 AM IST / 02:30 - 04:30 UTC):** The baseline period representing early commute traffic.
+2. **Midday Off-Peak (12:00 - 02:00 PM IST / 06:30 - 08:30 UTC):** Represents off-peak traffic flow and operational baselines.
+3. **Evening Peak (05:00 - 07:00 PM IST / 11:30 - 13:30 UTC):** Captures evening commute traffic and maximum network strain.
+
+Planners can toggle between these time periods directly in the dashboards, dynamically loading the corresponding GPS observed and schedule timetabled datasets.
+
+
+

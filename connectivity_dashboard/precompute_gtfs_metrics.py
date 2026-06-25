@@ -5,10 +5,19 @@ from pathlib import Path
 from pyproj import Transformer
 
 # Paths
-BASE = Path("/Users/bharatoraon/Desktop/Project_1")
-GTFS_MTC = BASE / "CUMTA_GTFS" / "MTC"
-GTFS_CMRL = BASE / "CUMTA_GTFS" / "CMRL"
-OUT = BASE / "connectivity_dashboard"
+script_dir = Path(__file__).resolve().parent.parent
+if (script_dir / "data").exists():
+    # Workspace environment
+    BASE = script_dir
+    GTFS_BASE = Path("/Users/bharatoraon/Desktop/Project_1")
+    GTFS_MTC = GTFS_BASE / "CUMTA_GTFS" / "MTC"
+    GTFS_CMRL = GTFS_BASE / "CUMTA_GTFS" / "CMRL"
+    OUT = BASE / "connectivity_dashboard"
+else:
+    BASE = Path("/Users/bharatoraon/Desktop/Project_1")
+    GTFS_MTC = BASE / "CUMTA_GTFS" / "MTC"
+    GTFS_CMRL = BASE / "CUMTA_GTFS" / "CMRL"
+    OUT = BASE / "connectivity_dashboard"
 
 CRS_WGS84 = "EPSG:4326"
 CRS_METERS = "EPSG:32644"
@@ -30,7 +39,25 @@ def parse_time_to_seconds(t_str):
         return None
 
 def main():
-    print("Starting pre-computation of GTFS metrics...", flush=True)
+    import argparse
+    parser = argparse.ArgumentParser(description="Precompute GTFS metrics for Chennai.")
+    parser.add_argument("--period", type=str, default="morning", choices=["morning", "midday", "evening"], help="Time period to process")
+    args = parser.parse_args()
+    
+    period = args.period
+    
+    # Define local time bounds (seconds from midnight)
+    if period == "morning":
+        peak_start = 8 * 3600   # 08:00 AM
+        peak_end = 10 * 3600    # 10:00 AM
+    elif period == "midday":
+        peak_start = 12 * 3600  # 12:00 PM
+        peak_end = 14 * 3600   # 02:00 PM
+    elif period == "evening":
+        peak_start = 17 * 3600  # 05:00 PM
+        peak_end = 19 * 3600   # 07:00 PM
+        
+    print(f"Starting pre-computation of GTFS metrics for period: {period} ({peak_start//3600:02d}:00 to {peak_end//3600:02d}:00 IST)...", flush=True)
 
     # 1. Load MTC stops coordinates
     print("Loading MTC stops...", flush=True)
@@ -65,11 +92,9 @@ def main():
             if tid and rid:
                 mtc_trip_id_to_route_id[tid] = rid
 
-    # 3. Load MTC frequencies and filter for peak hours (08:00 - 10:00)
+    # 3. Load MTC frequencies and filter for peak hours
     print("Loading MTC frequencies...", flush=True)
     mtc_trip_peak_headways = {}
-    peak_start = 8 * 3600
-    peak_end = 10 * 3600
     with open(GTFS_MTC / "frequencies.txt", "r", encoding="utf-8") as f:
         reader = csv.DictReader(f, skipinitialspace=True)
         for row in reader:
@@ -208,7 +233,7 @@ def main():
             arr_s = parse_time_to_seconds(arr_time)
             
             if arr_s is not None:
-                # Check if trip is in morning peak (08:00 - 10:00)
+                # Check if trip is in peak window
                 if peak_start <= arr_s <= peak_end:
                     rid = cmrl_trip_id_to_route_id.get(tid)
                     if rid:
@@ -250,12 +275,21 @@ def main():
         "cmrl_metro_headways": cmrl_station_headways,
         "cmrl_parent_stops": cmrl_parent_stops
     }
-
-    out_path = OUT / "gtfs_precomputed.json"
-    with open(out_path, "w", encoding="utf-8") as f:
+ 
+    # Save period-specific file
+    out_path_period = OUT / f"gtfs_precomputed_{period}.json"
+    with open(out_path_period, "w", encoding="utf-8") as f:
         json.dump(precomputed, f, indent=2, ensure_ascii=False)
+    print(f"Period-specific JSON saved to {out_path_period}", flush=True)
+    
+    # Keep default for morning compatibility
+    if period == "morning":
+        out_path_default = OUT / "gtfs_precomputed.json"
+        with open(out_path_default, "w", encoding="utf-8") as f:
+            json.dump(precomputed, f, indent=2, ensure_ascii=False)
+        print(f"Default morning JSON saved to {out_path_default}", flush=True)
         
-    print(f"Pre-computation complete! JSON saved to {out_path}", flush=True)
+    print("Pre-computation complete!", flush=True)
 
 if __name__ == "__main__":
     main()

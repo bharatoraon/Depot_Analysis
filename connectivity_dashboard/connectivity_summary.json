@@ -1,5 +1,5 @@
 {
-  "generated_from": "/Users/bharatoraon/Desktop/Project_1/data",
+  "generated_from": "/Volumes/Sandisk SSD/Depot_analysis/data",
   "method": {
     "bus_only_connectivity": "RAPTOR Round-Based Transit routing on MTC bus routes only.",
     "multimodal_connectivity": "Multimodal RAPTOR routing incorporating Bus + Metro (Blue/Green) + Suburban Rail lines with walking transfers under 200m.",
@@ -21,12 +21,12 @@
     "3 buses": 14
   },
   "multimodal_connectivity_counts": {
-    "2 routes": 1498,
-    "Direct": 2587,
-    "3 routes": 60
+    "2 routes": 1500,
+    "Direct": 2583,
+    "3 routes": 62
   },
   "ptal_average": 22.05,
-  "nhi_average": 58.7,
+  "nhi_average": 58.6,
   "ptal_grade_counts": {
     "1a": 587,
     "2": 698,
@@ -40,8 +40,27 @@
   "nhi_score_counts": {
     "Excellent (90-100)": 101,
     "Good (70-89)": 1143,
-    "Moderate (50-69)": 1756,
-    "Weak (30-49)": 1085,
-    "Critical (0-29)": 60
+    "Moderate (50-69)": 1750,
+    "Weak (30-49)": 1089,
+    "Critical (0-29)": 62
+  },
+  "ptal_gps_average": 26.29,
+  "nhi_gps_average": 61.8,
+  "ptal_gps_grade_counts": {
+    "1a": 420,
+    "2": 551,
+    "6b": 912,
+    "5": 282,
+    "6a": 804,
+    "3": 532,
+    "1b": 374,
+    "4": 270
+  },
+  "nhi_gps_score_counts": {
+    "Excellent (90-100)": 126,
+    "Good (70-89)": 1001,
+    "Moderate (50-69)": 2348,
+    "Weak (30-49)": 608,
+    "Critical (0-29)": 62
   }
 }
